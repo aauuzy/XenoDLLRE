@@ -2,7 +2,7 @@
 
 Every finding about Xeno v1.3.65 (`Xeno.dll`, SHA-256 `50318bc8d60477a2402440c4989611ba9640cf6a709b5ec9d4c44e3860e99049`), with its evidence and a confidence level.
 
-DLL-level evidence (addresses, imports, strings, signature) was re-verified on 2026-11-10 against a copy extracted from the public v1.3.65 installer, which is byte-identical to the analyzed build (F-08). `ARCHITECTURE.md` explains how the pieces fit together; this document is the authoritative list of what is claimed.
+DLL-level evidence (addresses, imports, strings, signature) was re-verified on 2026-11-10 against a copy extracted from the public v1.3.65 installer, which is byte-identical to the analyzed build (F-08). [`ARCHITECTURE.md`](ARCHITECTURE.md) explains how the pieces fit together; this document is the authoritative list of what is claimed.
 
 ## Confidence levels
 
@@ -20,11 +20,11 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | Code | Source | Reproducible from this repository? |
 |---|---|---|
 | `S` | ASCII string in the DLL | Needs the sample |
-| `I` | Import table entry | Needs the sample; counts in `SAMPLE_REPORT.md` |
+| `I` | Import table entry | Needs the sample; counts in [`SAMPLE_REPORT.md`](../../reports/SAMPLE_REPORT.md) |
 | `D` | Disassembly at the given RVA (capstone 5.0.7, image base `0x180000000`) | Needs the sample |
-| `R` | Resource directory, sizes, entropy | Needs the sample; values in `SAMPLE_REPORT.md` |
-| `P:<line>` | Line in the decrypted `CLIENT.LUA` | Needs the sample; line index in `payloads/README.md` |
-| `C` | `COMPARE_REPORT.md` (v1.3.40 to v1.3.65 diff) | Needs both samples |
+| `R` | Resource directory, sizes, entropy | Needs the sample; values in [`SAMPLE_REPORT.md`](../../reports/SAMPLE_REPORT.md) |
+| `P:<line>` | Line in the decrypted `CLIENT.LUA` | Needs the sample; line index in [`payloads/README.md`](../../payloads/README.md) |
+| `C` | [`COMPARE_REPORT.md`](../../reports/COMPARE_REPORT.md) (v1.3.40 to v1.3.65 diff) | Needs both samples |
 
 ---
 
@@ -33,8 +33,8 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | ID | Finding | Confidence | Evidence |
 |---|---|---|---|
 | F-01 | The sample is the native core of the Xeno Roblox executor, version `v1.3.65`. | Confirmed | `S`: `"Xeno Version: "`, `https://xeno.now`; `D`: `Version` export returns `"v1.3.65"`; `P:1` header `v1.3.65 CLIENT.LUA` |
-| F-02 | PE32+ DLL, x86-64, 2,362,704 bytes, six standard sections, PE timestamp 2026-10-20 20:43:17 UTC. | Confirmed | `SAMPLE_REPORT.md` |
-| F-03 | Not packed: standard section names and sizes, readable strings, intact `.pdata`, no writable+executable section. | Confirmed | Section table in `SAMPLE_REPORT.md` |
+| F-02 | PE32+ DLL, x86-64, 2,362,704 bytes, six standard sections, PE timestamp 2026-10-20 20:43:17 UTC. | Confirmed | [`SAMPLE_REPORT.md`](../../reports/SAMPLE_REPORT.md) |
+| F-03 | Not packed: standard section names and sizes, readable strings, intact `.pdata`, no writable+executable section. | Confirmed | Section table in [`SAMPLE_REPORT.md`](../../reports/SAMPLE_REPORT.md) |
 | F-04 | Authenticode-signed with a **self-signed** certificate, subject and issuer `CN=Rizve A`, serial `3FDA0D2C31C5C2A84790E6E2F20D1306`, valid 2026-05-10 to 2027-05-10, SHA-256 fingerprint `AEE2FA8D…C2B30A21`. The signed SHA-256 file digest matches the file, so it has not been modified since signing. The signature carries a Sectigo RFC 3161 timestamp of 2026-10-20 20:44:16 UTC, about one minute after the PE timestamp. Windows reports `UnknownError` because the chain does not lead to a trusted root. | Confirmed | 8,016-byte certificate table at file offset `0x23EE00`; digest recomputed and compared; certificate parsed with OpenSSL |
 | F-05 | Built with MSVC (MSVCP140, VCRUNTIME140, UCRT imports). | Confirmed | `I` |
 | F-06 | Embedded PDB path `C:\Users\rizve\OneDrive\Desktop\Projects\Xeno\build\Release\net9.0-windows8.0\Xeno.pdb`. The `net9.0-windows8.0` component is a .NET target-framework folder name, which is unusual for a native DLL shipped in an Electron installer; the build arrangement behind it is unknown. | Confirmed (path) / Unresolved (meaning) | `S` |
@@ -97,7 +97,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | ID | Finding | Confidence | Evidence |
 |---|---|---|---|
 | F-50 | The DLL runs an HTTP server on `localhost`, port supplied to the client via `%XENO_SERVER_PORT%`. | Strongly supported | `S`: `"Xeno Server is Live on http://localhost:{}"`; `P:65` |
-| F-51 | Opcode endpoint `POST /f?e=<op>` with JSON body `{"c": <arg>, "p": <pid>}`; ops 0–21 as listed in `ARCHITECTURE.md` §5; a missing status is treated as 410 ("Xeno was closed"). | Confirmed (client side) | `P:137-175`, `P:193-227` |
+| F-51 | Opcode endpoint `POST /f?e=<op>` with JSON body `{"c": <arg>, "p": <pid>}`; ops 0–21 as listed in [`ARCHITECTURE.md`](ARCHITECTURE.md) §5; a missing status is treated as 410 ("Xeno was closed"). | Confirmed (client side) | `P:137-175`, `P:193-227` |
 | F-52 | Additional endpoints: `/ls` (compile), `/rq?c=<method>&h=<b64 headers>&u=<b64 url>` (HTTP proxy for user scripts), `/qt?p=<pid>` (teleport queue), `/cb` (clipboard). | Confirmed (client side) | `P:2007`, `P:2174`, `P:2839-2847`, `/cb` call site |
 | F-53 | The client refuses user requests to port 3110 on loopback. The reason (a fixed or development port) is not established. | Confirmed (behavior) / Inferred (reason) | `P:2168-2169` |
 | F-54 | Every request made through the script HTTP API carries `User-Agent: Xeno/<version>` (unless the script overrides it), `exploit-guid` and `xeno-fingerprint` headers set to the user's hardware identifier, and `roblox-place-id`, `roblox-game-id` (the server JobId) and `roblox-session-id` headers. Any third-party server a Xeno script contacts therefore receives a stable machine identifier and the user's current game server. | Confirmed | `P:2157-2165`; identifier source `P:420-435` |
@@ -109,7 +109,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 |---|---|---|---|
 | F-60 | Resources `8194/8192` (27,985 B) and `8194/8196` (62,613 B) are a repeating 32-byte XOR over a zstd frame. Key `3EFD5045ED61BFCA57EFA192D0076696FDC5F72112BD49367A3FB319A92AF5BB`. | Confirmed | `D` decrypt loop 0x190737–0x19075D, key initializer 0x3B10; independent known-plaintext derivation of the first 4 key bytes; both resources decrypt and decompress |
 | F-61 | The key is unchanged between v1.3.40 and v1.3.65. | Confirmed | `C` |
-| F-62 | `8192` is `CLIENT.LUA` (145,004 B); `8196` is Roblox's en-us translation table (336,884 B), returned through a metatable so missing keys yield an empty string. | Confirmed | Decrypted output; hashes in `payloads/README.md` |
+| F-62 | `8192` is `CLIENT.LUA` (145,004 B); `8196` is Roblox's en-us translation table (336,884 B), returned through a metatable so missing keys yield an empty string. | Confirmed | Decrypted output; hashes in [`payloads/README.md`](../../payloads/README.md) |
 | F-63 | On every attach, the client downloads `https://x3no.pages.dev/code.lua` and, if it is longer than 3 bytes, runs it with the full Xeno environment. The developer can therefore run arbitrary code in every attached client without shipping a new DLL. | Confirmed (client code) | `P:4813-4824` |
 | F-64 | The client checks `https://x3no.pages.dev/version.txt` for update notifications. | Confirmed | `P:62`, `P:372` |
 | F-65 | `saveinstance` is fetched at call time from `raw.githubusercontent.com/luau/SynSaveInstance`. | Confirmed | Call site in `CLIENT.LUA` (`Xeno.saveinstance`) |
@@ -144,7 +144,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | F-91 | Consequently, the risks of this design fall mainly on Xeno's own users: scripts they run, and the `code.lua` channel (F-63), execute in a context the developer felt needed these protections. | Inferred | F-63, F-90 |
 | F-92 | Script HTTP requests disclose a stable hardware identifier and the current game server to whatever host a script contacts (F-54). Script authors can use this to track Xeno users across sessions and accounts. | Confirmed (headers) | F-54 |
 
-See `DISCLOSURE.md` for how these map to Roblox's security boundaries.
+See [`DISCLOSURE.md`](../DISCLOSURE.md) for how these map to Roblox's security boundaries.
 
 ## 11. Changes v1.3.40 to v1.3.65
 
@@ -153,7 +153,7 @@ See `DISCLOSURE.md` for how these map to Roblox's security boundaries.
 | F-95 | Attach reworked: menu/home-page bytecode set and `RefreshQueueOnTeleport` strings removed; translation-module and `PlayerRemoving` strings added. | Confirmed (strings) | `C` |
 | F-96 | Offset data terminology changed from "ecs pattern data" to "inp data". | Confirmed (strings) | `C` |
 | F-97 | `dwmapi.dll` import added; BytecodePatchWatcher added; HTTP/WebSocket server strings expanded. | Confirmed | `C` |
-| F-98 | `AttachThreadInput` is not imported by v1.3.65 but appears in the v1.3.40 string diff, suggesting the import was dropped. | Confirmed (absent in v1.3.65) / Unverified (present in v1.3.40) | `I`; `C`. Confirm by regenerating `COMPARE_REPORT.md` with the fixed `compare_samples.py` |
+| F-98 | `AttachThreadInput` is not imported by v1.3.65 but appears in the v1.3.40 string diff, suggesting the import was dropped. | Confirmed (absent in v1.3.65) / Unverified (present in v1.3.40) | `I`; `C`. Confirm by regenerating [`COMPARE_REPORT.md`](../../reports/COMPARE_REPORT.md) with the fixed `compare_samples.py` |
 ---
 
 ## Corrections to earlier revisions

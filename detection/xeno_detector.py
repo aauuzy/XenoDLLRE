@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Score-based scanner for Xeno-family executor DLLs.
 
-Built from static analysis of Xeno v1.3.40 and v1.3.65. See docs/DETECTION.md.
+Built from static analysis of Xeno v1.3.40 and v1.3.65. See docs/defense/DETECTION.md.
 
 Usage: python xeno_detector.py <file-or-directory> [-v]
 
@@ -11,7 +11,7 @@ Verdicts:
   non-PE files any hit      -> "xeno strings (non-PE)"  (memory dumps, scripts, reports)
 
 Thresholds are heuristics validated only against two Xeno builds and the benign set described
-in docs/DETECTION.md. Treat results as leads, not verdicts.
+in docs/defense/DETECTION.md. Treat results as leads, not verdicts.
 """
 import argparse
 import datetime

@@ -1,6 +1,6 @@
 # Countermeasures
 
-Ways to detect, measure and disrupt Xeno, ranked by how much each would cost Xeno to work around. Observations `G-x` and dependencies come from `THREAT_ASSESSMENT.md`; finding IDs from `FINDINGS.md`.
+Ways to detect, measure and disrupt Xeno, ranked by how much each would cost Xeno to work around. Observations `G-x` and dependencies come from [`THREAT_ASSESSMENT.md`](THREAT_ASSESSMENT.md); finding IDs from [`FINDINGS.md`](../research/FINDINGS.md).
 
 These are proposals from outside analysis. The author has no visibility into Roblox's existing detections, and some of these may already be in place. Each proposal states its assumptions and risks so it can be evaluated quickly by people who do.
 
@@ -54,9 +54,9 @@ These rely on identifiers Xeno can change quickly. Their best use is counting ho
 | C-11 | A process with a loopback HTTP listener that also holds memory-write access to the Roblox process | Host (anti-cheat) | F-50, F-86 |
 | C-12 | Outbound requests carrying `exploit-guid` or `xeno-fingerprint` headers, or `User-Agent: Xeno/` | Any web service scripts contact | F-54 |
 
-C-6 and C-8 are the hardest for Xeno to remove without changing how it works. C-7, C-10 and C-12 take minutes to change but are very specific while they last. File-level signatures for the DLL are in `DETECTION.md` and `tools/`.
+C-6 and C-8 are the hardest for Xeno to remove without changing how it works. C-7, C-10 and C-12 take minutes to change but are very specific while they last. File-level signatures for the DLL are in [`DETECTION.md`](DETECTION.md) and the [`detection/`](../../detection) folder.
 
-**Prevalence.** C-6 or C-7 recorded as telemetry, without enforcement, would give Roblox the user count this repository cannot (`THREAT_ASSESSMENT.md` §2).
+**Prevalence.** C-6 or C-7 recorded as telemetry, without enforcement, would give Roblox the user count this repository cannot ([`THREAT_ASSESSMENT.md`](THREAT_ASSESSMENT.md) §2).
 
 ## 3. Infrastructure
 
@@ -73,7 +73,7 @@ Most of the visible damage depends on experiences trusting the client. Regardles
 
 ## 5. User safety
 
-- **Impersonation malware.** Fake "undetected" Xeno installers have been used to spread a remote-access trojan and infostealer targeting Roblox and Discord tokens and browser credentials (`THREAT_ASSESSMENT.md` §3.4). Safety messaging aimed at players searching for executors could point this out.
+- **Impersonation malware.** Fake "undetected" Xeno installers have been used to spread a remote-access trojan and infostealer targeting Roblox and Discord tokens and browser credentials ([`THREAT_ASSESSMENT.md`](THREAT_ASSESSMENT.md) §3.4). Safety messaging aimed at players searching for executors could point this out.
 - **Identifier leakage and remote code.** Xeno users are tracked by any script host (F-54) and run whatever the developer publishes as `code.lua` (F-63).
 
 ## 6. Suggested order

@@ -1,6 +1,6 @@
 # Architecture — Xeno v1.3.65
 
-How Xeno's components fit together, reconstructed from static analysis of the DLL and the decrypted client script. Finding IDs (`F-xx`) refer to `FINDINGS.md`, which holds the evidence and confidence for each claim. RVAs are relative to image base `0x180000000`. Disassembly excerpts are as observed; C++ blocks marked *reconstruction* are readable approximations, not recovered source.
+How Xeno's components fit together, reconstructed from static analysis of the DLL and the decrypted client script. Finding IDs (`F-xx`) refer to [`FINDINGS.md`](FINDINGS.md), which holds the evidence and confidence for each claim. RVAs are relative to image base `0x180000000`. Disassembly excerpts are as observed; C++ blocks marked *reconstruction* are readable approximations, not recovered source.
 
 ---
 

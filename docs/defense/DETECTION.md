@@ -1,6 +1,6 @@
 # Detection
 
-Indicators and detection approaches for Xeno, derived from `FINDINGS.md`. Each section states which layer a defender needs access to, how specific the indicator is, and how it can fail.
+Indicators and detection approaches for Xeno, derived from [`FINDINGS.md`](../research/FINDINGS.md). Each section states which layer a defender needs access to, how specific the indicator is, and how it can fail.
 
 **Validation status.** The tools have been checked against two Xeno builds (v1.3.40 by the author; v1.3.65 by the author and again on 2026-11-10 with the current tools), against synthetic DLLs that reproduce Xeno's export set and resource layout (`tests/`), and against the text files in this repository. They have **not** been run against a large benign corpus or against other executors. No accuracy figures are claimed.
 
@@ -8,8 +8,8 @@ Indicators and detection approaches for Xeno, derived from `FINDINGS.md`. Each s
 
 | Tool | Input | Output |
 |---|---|---|
-| `tools/xeno_detector.py` | File or directory | Score and verdict per file |
-| `tools/xeno_executor.yar` | File, process memory, or capture | Matching rules |
+| [`detection/xeno_detector.py`](../../detection/xeno_detector.py) | File or directory | Score and verdict per file |
+| [`detection/xeno_executor.yar`](../../detection/xeno_executor.yar) | File, process memory, or capture | Matching rules |
 
 ### Detector scoring
 
@@ -45,7 +45,7 @@ An earlier revision matched 16 bytes of each encrypted resource. Bytes 5 onward 
 
 ## Layer 1 — Files on disk
 
-Product strings, the PDB path, the signing certificate, the key initializer, and the encrypted resources together identify Xeno builds with high specificity. The export set alone does not. Forks that strip branding would still match the structural checks while the key is unchanged. A key rotation would defeat the key-based checks; `tools/sample_report.py` attempts automatic recovery from the initializer pattern.
+Product strings, the PDB path, the signing certificate, the key initializer, and the encrypted resources together identify Xeno builds with high specificity. The export set alone does not. Forks that strip branding would still match the structural checks while the key is unchanged. A key rotation would defeat the key-based checks; [`tools/sample_report.py`](../../tools/sample_report.py) attempts automatic recovery from the initializer pattern.
 
 ## Layer 2 — Host behavior (EDR, Sysmon)
 
@@ -87,4 +87,4 @@ The PE tests build harmless DLLs with `clang`, `lld-link` and `llvm-rc`; they ar
 
 1. Scan a benign corpus (a Windows `System32` copy, common game and overlay DLLs) and record any hits.
 2. Scan other executor builds that are legitimately available, to measure family-level overlap.
-3. Regenerate `COMPARE_REPORT.md` with the current tools once the v1.3.40 sample is available.
+3. Regenerate [`COMPARE_REPORT.md`](../../reports/COMPARE_REPORT.md) with the current tools once the v1.3.40 sample is available.

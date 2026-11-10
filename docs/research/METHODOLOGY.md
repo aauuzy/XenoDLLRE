@@ -1,6 +1,6 @@
 # Methodology
 
-How the analysis was performed, in the order it happened, and why each step was chosen. Results are in `FINDINGS.md`; the reconstructed design is in `ARCHITECTURE.md`.
+How the analysis was performed, in the order it happened, and why each step was chosen. Results are in [`FINDINGS.md`](FINDINGS.md); the reconstructed design is in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Environment and constraints
 
@@ -15,7 +15,7 @@ How the analysis was performed, in the order it happened, and why each step was 
 | capstone | 5.0.7 | x86-64 disassembly |
 | zstandard | 0.25.0 | Decompression |
 | PowerShell `Get-AuthenticodeSignature` | Windows built-in | Signature check |
-| 7-Zip | 16.02 (7za) | Installer extraction (`tools/update_sample.py`) |
+| 7-Zip | 16.02 (7za) | Installer extraction ([`tools/update_sample.py`](../../tools/update_sample.py)) |
 | OpenSSL | 3.x | Certificate parsing |
 
 ## Phase 1 — Triage and capability mapping
@@ -48,23 +48,23 @@ How the analysis was performed, in the order it happened, and why each step was 
 
 **5. The key.** Those `.data` slots are zero in the file, so they are filled at runtime. A full-`.text` scan for stores to those addresses found one writer, a CRT dynamic initializer at `0x3B10` that allocates 32 bytes and writes eight immediate dwords. The first four bytes matched the known-plaintext result.
 
-**6. Decryption.** XOR, check the magic, zstd-decompress (`tools/decrypt_resources.py`). Both resources decompressed to text: `CLIENT.LUA` (145,004 B) and Roblox's en-us table (336,884 B). Successful decompression of both is the decisive confirmation of the key.
+**6. Decryption.** XOR, check the magic, zstd-decompress ([`tools/decrypt_resources.py`](../../tools/decrypt_resources.py)). Both resources decompressed to text: `CLIENT.LUA` (145,004 B) and Roblox's en-us table (336,884 B). Successful decompression of both is the decisive confirmation of the key.
 
-**7. Client analysis.** `CLIENT.LUA` is unobfuscated Luau. It provided the attach target check, the container layout, the protocol, the execution loops, the remote channels and the service deny-list. Its line numbers are indexed in `payloads/README.md`.
+**7. Client analysis.** `CLIENT.LUA` is unobfuscated Luau. It provided the attach target check, the container layout, the protocol, the execution loops, the remote channels and the service deny-list. Its line numbers are indexed in [`payloads/README.md`](../../payloads/README.md).
 
 **Lesson.** For an unobfuscated binary, the fastest path to a cipher is through its error messages: cross-reference them and read backwards.
 
 ## Phase 3 — Version comparison
 
-`tools/update_sample.py` extracts `Xeno.dll` from each installer; `tools/compare_samples.py` diffs exports, imports, URLs, environment variables, resources, filtered strings and section sizes between two builds. Comparing v1.3.40 with v1.3.65 dated the attach rework, the Bytecode Patch Watcher and the `dwmapi.dll` import, and showed the resource key did not change.
+[`tools/update_sample.py`](../../tools/update_sample.py) extracts `Xeno.dll` from each installer; [`tools/compare_samples.py`](../../tools/compare_samples.py) diffs exports, imports, URLs, environment variables, resources, filtered strings and section sizes between two builds. Comparing v1.3.40 with v1.3.65 dated the attach rework, the Bytecode Patch Watcher and the `dwmapi.dll` import, and showed the resource key did not change.
 
 ## Phase 4 — Review and correction (November 2026)
 
-A full review of the repository against the client source and the generated reports found claims that went further than the evidence, several technical errors, and a bug in `compare_samples.py` that limited the function-level import diff to one DLL. Corrections are listed at the end of `FINDINGS.md`. Each finding now carries a confidence level and an evidence reference, the tools gained a test suite (`tests/`) built on synthetic DLLs, and the redistributed payloads were replaced by hashes and a line index.
+A full review of the repository against the client source and the generated reports found claims that went further than the evidence, several technical errors, and a bug in `compare_samples.py` that limited the function-level import diff to one DLL. Corrections are listed at the end of [`FINDINGS.md`](FINDINGS.md). Each finding now carries a confidence level and an evidence reference, the tools gained a test suite (`tests/`) built on synthetic DLLs, and the redistributed payloads were replaced by hashes and a line index.
 
 ## Phase 5 — Verification against the sample (November 2026)
 
-The current public installer was extracted with 7-Zip (NSIS layer, then the embedded `app-64.7z`), and its `Xeno.dll` matched the analyzed build's SHA-256. On that copy: every disassembly excerpt in `ARCHITECTURE.md` was re-checked at its address with capstone; imports and strings behind the unverified findings were checked (F-36, F-86, F-98 updated); the signature was parsed and its digest recomputed (F-04); both resources decrypted to the hashes in `payloads/README.md`; `SAMPLE_REPORT.md` was regenerated and the detector and YARA rules were run. `tools/update_sample.py` was also run end to end on the installer.
+The current public installer was extracted with 7-Zip (NSIS layer, then the embedded `app-64.7z`), and its `Xeno.dll` matched the analyzed build's SHA-256. On that copy: every disassembly excerpt in [`ARCHITECTURE.md`](ARCHITECTURE.md) was re-checked at its address with capstone; imports and strings behind the unverified findings were checked (F-36, F-86, F-98 updated); the signature was parsed and its digest recomputed (F-04); both resources decrypted to the hashes in [`payloads/README.md`](../../payloads/README.md); [`SAMPLE_REPORT.md`](../../reports/SAMPLE_REPORT.md) was regenerated and the detector and YARA rules were run. [`tools/update_sample.py`](../../tools/update_sample.py) was also run end to end on the installer.
 
 ## Reproducing
 
@@ -76,4 +76,4 @@ python tools/decrypt_resources.py sample/TEST.dll payloads/
 sha256sum payloads/xeno_resource_*.bin                  # compare with payloads/README.md
 ```
 
-Disassembly listings in `ARCHITECTURE.md` can be checked at the stated RVAs in any disassembler.
+Disassembly listings in [`ARCHITECTURE.md`](ARCHITECTURE.md) can be checked at the stated RVAs in any disassembler.

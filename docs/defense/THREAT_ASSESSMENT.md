@@ -1,6 +1,6 @@
 # Threat assessment
 
-What Xeno is used for, how widespread it appears to be, who it harms, and what its design reveals about where the Roblox client can be hardened. Finding IDs (`F-xx`) refer to `FINDINGS.md`. Countermeasures are in `COUNTERMEASURES.md`.
+What Xeno is used for, how widespread it appears to be, who it harms, and what its design reveals about where the Roblox client can be hardened. Finding IDs (`F-xx`) refer to [`FINDINGS.md`](../research/FINDINGS.md). Countermeasures are in [`COUNTERMEASURES.md`](COUNTERMEASURES.md).
 
 ## 1. Summary
 
@@ -20,7 +20,7 @@ There is no reliable public measurement of how many people use Xeno. What can be
 | A malware campaign has impersonated Xeno since early 2026 (§3.4) | Enough demand that criminals find Xeno worth impersonating | Strong as an indication of popularity; says nothing about the real user count |
 | Xeno's update model (offsets downloaded at runtime, F-33) lets it keep working across Roblox releases without a new build | Sustained availability | Confirmed design |
 
-**Conclusion.** Xeno is clearly widely used, but its scale cannot be established from public data, and this repository does not claim a number. Roblox can measure it directly: the in-client indicators in `COUNTERMEASURES.md` §2 (a modified en-us module, the `CoreGui/<pid>` container, `shared.__Xeno`) can count Xeno-attached sessions in telemetry without banning anyone.
+**Conclusion.** Xeno is clearly widely used, but its scale cannot be established from public data, and this repository does not claim a number. Roblox can measure it directly: the in-client indicators in [`COUNTERMEASURES.md`](COUNTERMEASURES.md) §2 (a modified en-us module, the `CoreGui/<pid>` container, `shared.__Xeno`) can count Xeno-attached sessions in telemetry without banning anyone.
 
 ## 3. Who is harmed
 
@@ -30,7 +30,7 @@ Xeno exposes input synthesis, property and signal access, metatable and function
 
 ### 3.2 Experience developers
 
-Most gameplay damage happens because an experience trusts what the client sends. Developers bear the cost: economy abuse, lost players, and time spent on anti-exploit work. Server-side validation is their main defense whatever the executor (`COUNTERMEASURES.md` §4).
+Most gameplay damage happens because an experience trusts what the client sends. Developers bear the cost: economy abuse, lost players, and time spent on anti-exploit work. Server-side validation is their main defense whatever the executor ([`COUNTERMEASURES.md`](COUNTERMEASURES.md) §4).
 
 ### 3.3 Xeno's own users
 
@@ -55,7 +55,7 @@ Trust in fair play, moderation and support load, and the ongoing engineering cos
 4. To run a user script, the DLL compiles it with an embedded Luau compiler and writes the bytecode into a ModuleScript the client is repeatedly `require()`ing; `require` returns the compiled function and the client runs it (F-40, F-41).
 5. Everything else (file access, HTTP, clipboard, teleport queue) goes through `/f?e=<op>` and related endpoints on the localhost server (F-51, F-52).
 
-Full detail: `ARCHITECTURE.md`.
+Full detail: [`ARCHITECTURE.md`](../research/ARCHITECTURE.md).
 
 ## 5. What Xeno's design shows about the client
 

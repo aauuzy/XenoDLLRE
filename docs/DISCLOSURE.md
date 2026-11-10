@@ -35,7 +35,7 @@ Based on Roblox's HackerOne policy (version dated 2026-03-04, read 2026-11-10; a
 
 ## What this repository does not publish
 
-- The full decrypted `CLIENT.LUA` or the Roblox locale table (hashes and a line index only; `payloads/README.md`).
+- The full decrypted `CLIENT.LUA` or the Roblox locale table (hashes and a line index only; [`payloads/README.md`](../payloads/README.md)).
 - Downloaded offsets, the contents of `ep.zst.enc`, or any Roblox memory layout.
 - Any code that improves, repairs or hides an executor, or bypasses anti-cheat or telemetry.
 
@@ -47,7 +47,7 @@ Based on Roblox's HackerOne policy (version dated 2026-03-04, read 2026-11-10; a
 
 ## Sharing this research with Roblox
 
-Roblox's developer forum directs exploit information that could be misused if posted publicly to its HackerOne program ([DevForum, About the Bug Reports category](https://devforum.roblox.com/t/about-the-bug-reports-category/16/1)). The intended route is a HackerOne report that states plainly it is defensive intelligence rather than a vulnerability claim, points to `BRIEFING.md`, and offers the samples privately. Such a report may be closed as informational or not applicable; that outcome is acceptable because the goal is that the right team sees it, not a bounty.
+Roblox's developer forum directs exploit information that could be misused if posted publicly to its HackerOne program ([DevForum, About the Bug Reports category](https://devforum.roblox.com/t/about-the-bug-reports-category/16/1)). The intended route is a HackerOne report that states plainly it is defensive intelligence rather than a vulnerability claim, points to [`BRIEFING.md`](../BRIEFING.md), and offers the samples privately. Such a report may be closed as informational or not applicable; that outcome is acceptable because the goal is that the right team sees it, not a bounty.
 
 ## Contact
 
