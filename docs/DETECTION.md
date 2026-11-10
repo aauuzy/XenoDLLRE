@@ -1,102 +1,89 @@
-# Detection Engineering — Xeno Executor (v1.3.65)
+# Detection
 
-How to detect Xeno at every layer it touches, built from the static analysis in
-`docs/FINDINGS.md` / `docs/TECHNICAL_DEEP_DIVE.md` and the decrypted payloads (`payloads/xeno_client.lua`,
-`payloads/xeno_payload2.lua`). Ships with two ready tools (in `tools/`):
+Indicators and detection approaches for Xeno, derived from `FINDINGS.md`. Each section states which layer a defender needs access to, how specific the indicator is, and how it can fail.
 
-- **`tools/xeno_executor.yar`** — YARA pack (file + memory scanning). Validated against the sample.
-- **`tools/xeno_detector.py`** — standalone score-based PE scanner (no YARA needed).
-  `python tools/xeno_detector.py <file-or-dir> [-v]` → score ≥ 60 = likely Xeno, 30–59 = executor-family. Thresholds are heuristic and untested against a large benign corpus.
+**Validation status.** The tools have been checked against two Xeno builds (v1.3.40 and v1.3.65, by the author), against synthetic DLLs that reproduce Xeno's export set and resource layout (`tests/`), and against the text files in this repository. They have **not** been run against a large benign corpus or against other executors. No accuracy figures are claimed.
 
----
+## Tools
 
-## 1. File / static layer
-
-| Indicator | Value | Strength |
+| Tool | Input | Output |
 |---|---|---|
-| Credit string | `Xeno is only maintained by Rizve ... rizve@xeno.onl` | Unique |
-| PDB path | `C:\Users\rizve\OneDrive\Desktop\Projects\Xeno\build\Release\net9.0-windows8.0\Xeno.pdb` | Unique |
-| Export contract | `Attach, Execute, GetClients, Initialize, SetSetting, Version` (all six) | High (shared by forks) |
-| Attach strings | `Intercepted translation module @{:#x}`, `Attaching in-game using translation module.` | Unique |
-| XOR key (raw) | `3E FD 50 45 ED 61 BF CA 57 EF A1 92 D0 07 66 96 FD C5 F7 21 12 BD 49 36 7A 3F B3 19 A9 2A F5 BB` | Unique |
-| XOR key (code) | dword-store pattern `C7 00 3EFD5045 C7 40 04 ED61BFCA` (initializer @ `.text:0x3B10`) | Unique |
-| Encrypted resources | PE resource type `8194`, IDs `8192`/`8196`, headers `16 48 7F B8 4D 0D 89 C8` / `16 48 7F B8 4D 95 9C CF` | Unique |
-| Payload marker | `DO NOT DELETE: BELONGS TO XENO` | Unique |
-| Env vars | `%XENO_CLIENT_PID%`, `%XENO_SERVER_PORT%`, `%XENO_VERSION%` | High |
-| Remote URLs | `x3no.pages.dev/ep.zst.enc`, `/version.txt`, `/code.lua`; `xeno.now`; `xeno.onl` | High |
-| PE anomalies | unsigned; `TimeDateStamp` later than the scan date (flagged only when actually in the future) | Weak (context only) |
-| Bundled libs | Luau FFlag strings + zstd error strings + cpp-httplib/IXWebSocket RTTI in one binary | Medium |
+| `tools/xeno_detector.py` | File or directory | Score and verdict per file |
+| `tools/xeno_executor.yar` | File, process memory, or capture | Matching rules |
 
-`tools/xeno_detector.py` weights these; a fork that strips the "Xeno" branding still trips
-`export_contract`, `resource_type_8194`, `xor_key`, and `luau_fflags`.
+### Detector scoring
 
-## 2. Memory layer (scanning a live process)
+PE files are scored on product-unique strings and two structural checks: the full six-export interface (+25) and a type-8194 resource whose first four bytes decrypt to the zstd magic under the known key (+35 each). Verdicts: ≥60 `xeno (heuristic)`, 30–59 `executor-family (suspicious)`.
 
-Load `tools/xeno_executor.yar` against process memory of the loader or any injected region:
+Non-PE files (memory dumps, scripts, reports) get `xeno strings (non-PE)` if any string indicator is present. They never receive a DLL verdict; a document that quotes Xeno strings, including this one, would otherwise score as Xeno.
 
-- `Xeno_ClientLua_Payload` fires on the **decrypted** client script — the DLL must
-  decrypt it in memory to use it, so the plaintext is always present in the loader
-  process after `Initialize`.
-- `Xeno_Server_Protocol` catches the resident strings (`/f?e=`, `/rq?c=`, `localhost:3110`).
-- Watch for a process hosting a `localhost` HTTP server while also holding open
-  handles to a Roblox process (`NtSuspendProcess`/`NtWriteVirtualMemory` call targets).
+Expected behavior, covered by tests:
 
-## 3. Behavioral layer (EDR / Sysmon)
-
-| Behavior | Why it's suspicious |
+| Input | Verdict |
 |---|---|
-| Non-Roblox process calls `NtSuspendProcess` / `NtWriteVirtualMemory` on `RobloxPlayerBeta.exe` | Core attach primitive (resolved manually from `ntdll.dll` at `Initialize`) |
-| A process creates `%LOCALAPPDATA%/`-adjacent dir `Xeno/` containing `workspace`, `autoexec`, `Cache` | Fixed on-disk layout |
-| Environment variables `XENO_CLIENT_PID`, `XENO_SERVER_PORT`, `XENO_VERSION` set before child start | Loader handshake |
-| HTTP listener bound to `127.0.0.1` (esp. port **3110**) from an unsigned binary, serving `POST /f?e=<int>` and `POST /rq?c=..&h=..&u=..` | Xeno control plane |
-| Outbound HTTPS to `x3no.pages.dev`, `xeno.now`, `xeno.onl`, or `pastebin.com/raw/A7n0vJtR` | Offsets / RCE-push / config channels |
-| Roblox window manipulated by a foreign process (`SetWindowPos`, `RedrawWindow`, `DwmSetWindowAttribute` right after a suspend) | `RefreshRBXWindowV2` fallback |
-| Process terminates other instances of itself (`Terminated same existing Xeno process`) | Self-mutex behavior |
-| Clipboard write + `keybd_event`/`mouse_event` bursts from the loader process | Input synthesis |
+| Xeno v1.3.65 DLL | `xeno (heuristic)`, score 365 at the time of the original analysis (scoring has since changed; regenerate `SAMPLE_REPORT.md`) |
+| DLL with the six exports and a resource encrypted with the known key | `xeno (heuristic)` |
+| Same, but the resource key differs (simulates a key rotation) | `executor-family (suspicious)` |
+| DLL with only the six exports | `no match` |
+| Unrelated DLL | `no match` |
+| Repository text files | `no match` or `xeno strings (non-PE)` |
 
-## 4. In-game layer (for Roblox-side / anti-cheat detection)
+### YARA rules
 
-The decrypted `CLIENT.LUA` exposes exactly what Xeno looks like from *inside* the game:
+| Rule | Scope | What it matches | False-positive considerations |
+|---|---|---|---|
+| `Xeno_Executor_DLL_HighConf` | File | MZ header and 2 of 10 product strings / PDB path | Requires a PE; low risk |
+| `Xeno_ResourceKey_Initializer` | File | Key immediates as emitted by the initializer | Specific to this compiler output; breaks on key rotation or code-generation changes |
+| `Xeno_ResourceKey_Memory` | Memory | The 32-byte key as contiguous bytes | Any file or report containing the raw key bytes |
+| `Xeno_EncryptedResource` | File | Type-8194 resource beginning `16 48 7F B8` | Independent of payload size and version while the key is unchanged; tested on synthetic DLLs only |
+| `Xeno_ClientLua_Payload` | Memory, file | 3 of 8 distinctive `CLIENT.LUA` strings | Matches documents that quote them |
+| `Xeno_Server_Protocol` | Memory, capture | 4 of 7 protocol strings | Matches documents that quote them, including this repository |
+| `Executor_API_Generic` | File | All six export names | Names are generic; triage only |
 
-1. **`CoreGui` folder named after the client PID** (`%XENO_CLIENT_PID%`), with:
-   - child folders `Pointer` and `Loadstring`,
-   - a `Message` instance named **`DO NOT DELETE: BELONGS TO XENO`**,
-   - randomly-named `ModuleScript` children (names are `math.random(1, 9999999)`), swapped frequently (the `ExecutionListener` regenerates them in a tight loop).
-2. **Global pollution:** `shared.__Xeno` table; `getfenv().Xeno` on the hijacked thread.
-3. **Hijacked `en-us` module:** the locale translation ModuleScript under
-   `RobloxGui.Modules` has non-original bytecode. Server-side, compare the module's
-   bytecode hash against the known-good en-us table (Xeno keeps a pristine copy in
-   resource `8196` precisely so it *looks* right — hash comparison defeats this).
-4. **Loopback HTTP from the DataModel:** `HttpService:RequestInternal` calls to
-   `http://localhost:<port>/f?e=` at a steady cadence (the execute loop polls with
-   `task.wait(0.001)`) — an unmistakable traffic signature. Also watch for
-   `POST /ls?c=loadstring:<number>`, `/qt?p=`, `/cb`.
-5. **Bytecode churn:** repeated `require()` of brand-new ModuleScripts returning
-   functions — legitimate code virtually never does this in a 1 ms loop.
-6. **Patched bytecode is transient (v1.3.65+):** the *BytecodePatchWatcher* thread
-   auto-restores original module bytecode if a patch isn't consumed quickly, and
-   originals are checksummed. Memory-scanning for foreign bytecode must catch the
-   narrow patch→run/restore window; prefer the persistent signals above.
-7. **Self-identifying calls:** `identifyexecutor()` returns Xeno branding; scripts that
-   call it reveal the environment (honeypot opportunity).
-8. **Update/RCE callbacks:** outbound fetches to `x3no.pages.dev/version.txt` and
-   `code.lua` via the proxy endpoint.
+An earlier revision matched 16 bytes of each encrypted resource. Bytes 5 onward include the zstd frame header, which encodes the content size and so changes with every build. The current rule matches only the 4-byte encrypted magic within a type-8194 resource.
 
-## 5. Network layer
+## Layer 1 — Files on disk
 
-- **Loopback:** `POST /f?e=<0-21>` with JSON body `{"c":..., "p":...}`; `POST /rq?c=<methodId>&h=<b64>&u=<b64>`; `POST /ls?c=<moduleName>&p=<pid>` (compile); `POST /qt?p=<pid>` (teleport queue); `POST /cb` (clipboard). All are path-shaped enough for a localhost-inspecting proxy/EDR rule.
-- **Outbound:** `GET https://x3no.pages.dev/{version.txt,code.lua,ep.zst.enc}` — the `ep.zst.enc` blob is XOR-encrypted with the same 32-byte key pattern (`.zst.enc` naming) and can be scanned after download with the `Xeno_ResourceXorKey` logic.
-- **Headers added by the proxy:** `roblox-place-id`, `roblox-game-id`, `roblox-session-id` on non-Roblox HTTP traffic.
+Product strings, the PDB path, the key initializer, and the encrypted resources together identify Xeno builds with high specificity. The export set alone does not. Forks that strip branding would still match the structural checks while the key is unchanged. A key rotation would defeat the key-based checks; `tools/sample_report.py` attempts automatic recovery from the initializer pattern.
 
-## 6. YARA rule map
+## Layer 2 — Host behavior (EDR, Sysmon)
 
-| Rule | Layer | Fires on |
+| Observable | Specificity | Notes |
 |---|---|---|
-| `Xeno_Executor_DLL_HighConf` | file/memory | unique Xeno strings + PDB path |
-| `Xeno_ResourceXorKey` | file/memory | key bytes or the initializer code pattern |
-| `Xeno_EncryptedResource` | file | the two encrypted resource headers |
-| `Xeno_ClientLua_Payload` | memory/disk | decrypted CLIENT.LUA artifacts |
-| `Xeno_Server_Protocol` | memory/pcap | loopback protocol strings, port 3110 |
-| `Executor_API_Generic` | file | the six-export executor contract (catches forks) |
+| A non-Roblox process opens `RobloxPlayerBeta.exe` with memory-write access and writes to it | Medium | Shared by all external executors and some overlays; telemetry needs handle or `WriteProcessMemory`-class events |
+| Process sets `XENO_CLIENT_PID`, `XENO_SERVER_PORT`, `XENO_VERSION` | High | Inferred from the `%…%` placeholders; how they are set is not traced |
+| `Xeno` directory with `workspace`, `autoexec` and a cache file | High | Location not established |
+| Loopback HTTP listener in the same process, receiving `POST /f?e=<int>`, `/ls?c=`, `/rq?c=` | High | Requires loopback capture or a host-based proxy |
+| Outbound HTTPS to `x3no.pages.dev`, `xeno.now`, `xeno.onl`, `pastebin.com/raw/A7n0vJtR` | High (domains) | Domains can change without a DLL update |
 
-Validated results on this sample: `sample/TEST.dll` → 4 rules fire; `payloads/xeno_client.lua` → 2 rules fire.
+## Layer 3 — Inside the Roblox client
+
+These require code or checks running in the client, which is the domain of Roblox's client integrity and anti-cheat systems. A game server cannot observe client memory or CoreGui directly, and an experience's own scripts cannot read CoreGui.
+
+| Observable | Specificity | Notes |
+|---|---|---|
+| `CoreGui` folder named with the client's own PID, containing `Pointer`, `Loadstring`, and `Message` "DO NOT DELETE: BELONGS TO XENO" | Very high | Trivial for the developer to rename in a future build |
+| `shared.__Xeno` present | Very high | Same caveat |
+| en-us translation module's bytecode differs from the shipped original | High | Persistent for the session; does not depend on branding |
+| ModuleScripts created and destroyed at high frequency under one CoreGui folder, each `require()`d repeatedly | High | The polling loop runs every ~1 ms; it is local and produces no network traffic |
+| `HttpService:RequestInternal` calls to `http://localhost:<port>/f?e=`, `/ls?c=loadstring:`, `/qt?p=`, `/cb` | High | Only after an execution (op 21), on each `loadstring` (ops 20/21), and on file and API calls; not a constant stream |
+| Foreign bytecode in a module | High | Transient by design in v1.3.65 (Bytecode Patch Watcher); prefer the persistent signals above |
+
+## Layer 4 — Network
+
+Loopback traffic is described above. Outbound, the client requests `version.txt` and `code.lua` from `x3no.pages.dev` on attach, and the DLL requests `ep.zst.enc` on startup if the primary offsets source fails. Proxied script requests carry `roblox-place-id`, `roblox-game-id` and `roblox-session-id` headers on traffic that is not going to Roblox.
+
+## Running the tests
+
+```bash
+pip install pefile zstandard yara-python
+python -m unittest discover -s tests -v
+```
+
+The PE tests build harmless DLLs with `clang`, `lld-link` and `llvm-rc`; they are skipped if those tools are missing.
+
+## Next steps for validation
+
+1. Scan a benign corpus (a Windows `System32` copy, common game and overlay DLLs) and record any hits.
+2. Scan other executor builds that are legitimately available, to measure family-level overlap.
+3. Regenerate `SAMPLE_REPORT.md` and `COMPARE_REPORT.md` with the current tools.

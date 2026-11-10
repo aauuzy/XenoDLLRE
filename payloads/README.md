@@ -39,11 +39,13 @@ The documentation cites these line numbers as evidence. Each row describes the c
 | 420 | `RServer({XFS.Activate, ''}, true)`; comment says it returns the HWID | HWID |
 | 441–549 | `BlockedServiceFuncs`: services and methods Xeno denies to user scripts | Security significance |
 | 575–577 | `GetDeviceAccessToken`, `GetDeviceIntegrityToken(Yield)` replaced with `Blocked` | Security significance |
-| 1994–2008 | `Xeno.loadstring`: module named `loadstring:<random>[chunkName]`, source posted to `/ls?c=<name>&p=<pid>` | Execution path B |
-| 2038–2040 | op 20, `require(module)`, op 21 | Execution path B |
+| 1643 | Environment wrapper variant used for module identity checks | Execution wrapper |
+| 1994–2080 | `Xeno.loadstring`: module named `loadstring:<random>[chunkName]`, source posted to `/ls?c=<name>&p=<pid>`, then op 20 / `require` / op 21 polling (2038–2040) with a 3 s timeout | Execution path B |
+| 2162 | `roblox-session-id` header added to proxied requests (with place and game IDs nearby) | Protocol |
 | 2168–2169 | Requests to port 3110 refused | Protocol |
 | 2174 | `/rq?c=` HTTP proxy | Protocol |
 | 2839–2847 | `queue_on_teleport` posts to `/qt?p=` | Teleport queue |
+| 2933 | `saveinstance` fetched from `luau/SynSaveInstance` on GitHub | Remote content |
 | 3503–3516 | `getthreadidentity` returns a stored number (default 3); `setthreadidentity` only updates that number | Environment completeness |
 | 4766 | Commented-out call to `XFS.CBlockFunctions`, an opcode absent from the table | Version drift |
 | 4773–4801 | Teleport-queue replay and autoexec blocks, both commented out; they reference `XFS.GetQueueOnTeleport` and `XFS.GetAutoExecuteContents`, which are not in the table | Disabled features |

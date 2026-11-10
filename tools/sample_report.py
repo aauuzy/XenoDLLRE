@@ -121,6 +121,8 @@ def analyze(path):
             pe.FILE_HEADER.TimeDateStamp, datetime.UTC).strftime("%Y-%m-%d %H:%M:%S"),
         "timestamp_future": pe.FILE_HEADER.TimeDateStamp > now,
         "subsystem": pe.OPTIONAL_HEADER.Subsystem,
+        "cert_table_size": pe.OPTIONAL_HEADER.DATA_DIRECTORY[
+            pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].Size,
         "imagebase": hex(pe.OPTIONAL_HEADER.ImageBase),
         "entrypoint": hex(pe.OPTIONAL_HEADER.AddressOfEntryPoint),
         "sections": [{
@@ -213,6 +215,9 @@ def render(d):
     add(f"| Machine | {d['machine']}{' (x86-64)' if d['machine'] == '0x8664' else ''} |")
     add(f"| PE timestamp | {d['timestamp_str']} UTC{forged} |")
     add(f"| Subsystem | {d['subsystem']} |")
+    cert = (f"present ({d['cert_table_size']:,} bytes)" if d["cert_table_size"]
+            else "absent (no Authenticode signature)")
+    add(f"| Certificate table | {cert} |")
     add(f"| ImageBase | {d['imagebase']} |")
     add(f"| EntryPoint | {d['entrypoint']} |")
     add("")
