@@ -29,6 +29,7 @@ XOR_KEY = bytes.fromhex(
 )
 ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
 RESOURCE_TYPE = 8194
+SIGNER_SUBJECT = b"Rizve A"
 EXPORT_SET = {"Attach", "Execute", "GetClients", "Initialize", "SetSetting", "Version"}
 PE_THRESHOLD_XENO = 60
 PE_THRESHOLD_FAMILY = 30
@@ -73,8 +74,18 @@ def iter_resources(pe):
                 yield rtype.id, rname.id, image[off:off + size]
 
 
-def scan_pe(pe):
+def certificate_table(pe, raw):
+    """Bytes of the Authenticode certificate table (empty if the file is not signed)."""
+    entry = pe.OPTIONAL_HEADER.DATA_DIRECTORY[
+        pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]]
+    return raw[entry.VirtualAddress:entry.VirtualAddress + entry.Size] if entry.Size else b""
+
+
+def scan_pe(pe, raw):
     hits, score = [], 0
+    if SIGNER_SUBJECT in certificate_table(pe, raw):
+        hits.append("signer_rizve_cert")
+        score += 35
     if hasattr(pe, "DIRECTORY_ENTRY_EXPORT"):
         names = {s.name.decode(errors="replace")
                  for s in pe.DIRECTORY_ENTRY_EXPORT.symbols if s.name}
@@ -115,7 +126,7 @@ def scan_file(path):
         pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_EXPORT"],
         pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_RESOURCE"],
     ])
-    pe_score, pe_hits = scan_pe(pe)
+    pe_score, pe_hits = scan_pe(pe, raw)
     score += pe_score
     hits += pe_hits
     if pe.FILE_HEADER.TimeDateStamp > datetime.datetime.now(datetime.UTC).timestamp():

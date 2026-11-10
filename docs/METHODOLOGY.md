@@ -15,7 +15,8 @@ How the analysis was performed, in the order it happened, and why each step was 
 | capstone | 5.0.7 | x86-64 disassembly |
 | zstandard | 0.25.0 | Decompression |
 | PowerShell `Get-AuthenticodeSignature` | Windows built-in | Signature check |
-| 7-Zip | — | Installer extraction (`tools/update_sample.py`) |
+| 7-Zip | 16.02 (7za) | Installer extraction (`tools/update_sample.py`) |
+| OpenSSL | 3.x | Certificate parsing |
 
 ## Phase 1 — Triage and capability mapping
 
@@ -29,7 +30,7 @@ How the analysis was performed, in the order it happened, and why each step was 
 
 **5. Resources.** Besides the manifest, two resources of custom type `8194` (IDs `8192`, `8196`) with the same first five bytes and near-maximal entropy (≈7.99 bits/byte). Entropy alone cannot separate compression from encryption, since zstd output is also close to 8 bits/byte. What pointed to encryption was that neither blob began with the zstd magic even though the string `"Could not decompress a Xeno resource"` showed zstd was involved.
 
-**6. Signature.** `Get-AuthenticodeSignature` returned `UnknownError`. That was originally read as "unsigned", but an unsigned file returns `NotSigned`; `UnknownError` typically means a signature is present and could not be validated. Sectigo time-stamping CA URLs also appear in the binary inside what look like DER certificate fragments. The question is open (F-04); the certificate-table size reported by `tools/sample_report.py` settles whether a signature blob exists.
+**6. Signature.** `Get-AuthenticodeSignature` returned `UnknownError`, which was first read as "unsigned". An unsigned file returns `NotSigned`. Parsing the 8,016-byte certificate table later showed a signature from a self-signed `CN=Rizve A` certificate with a Sectigo timestamp; recomputing the Authenticode SHA-256 digest matched the signed value (F-04). Windows reports `UnknownError` because the chain does not reach a trusted root.
 
 **7. Targeted disassembly.** capstone at each export RVA, resolving RIP-relative operands to strings. This established calling conventions and object-field offsets for `Execute` and `GetClients`, the `Version` small-string pattern, the `Attach` thunk, and the `ntdll` resolution in `Initialize`.
 
@@ -60,6 +61,10 @@ How the analysis was performed, in the order it happened, and why each step was 
 ## Phase 4 — Review and correction (November 2026)
 
 A full review of the repository against the client source and the generated reports found claims that went further than the evidence, several technical errors, and a bug in `compare_samples.py` that limited the function-level import diff to one DLL. Corrections are listed at the end of `FINDINGS.md`. Each finding now carries a confidence level and an evidence reference, the tools gained a test suite (`tests/`) built on synthetic DLLs, and the redistributed payloads were replaced by hashes and a line index.
+
+## Phase 5 — Verification against the sample (November 2026)
+
+The current public installer was extracted with 7-Zip (NSIS layer, then the embedded `app-64.7z`), and its `Xeno.dll` matched the analyzed build's SHA-256. On that copy: every disassembly excerpt in `ARCHITECTURE.md` was re-checked at its address with capstone; imports and strings behind the unverified findings were checked (F-36, F-86, F-98 updated); the signature was parsed and its digest recomputed (F-04); both resources decrypted to the hashes in `payloads/README.md`; `SAMPLE_REPORT.md` was regenerated and the detector and YARA rules were run. `tools/update_sample.py` was also run end to end on the installer.
 
 ## Reproducing
 

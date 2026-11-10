@@ -39,7 +39,9 @@ The DLL never runs Luau inside Roblox by itself. It writes compiled bytecode int
 .reloc  VA=0x279000  VS=0x15EC     relocations
 ```
 
-Entry point `0x199A60` is the standard MSVC CRT DLL startup. No packing (F-03).
+Entry point `0x199A60` is the standard MSVC CRT DLL startup. No packing (F-03). The file is signed with a self-signed certificate and timestamped (F-04).
+
+The disassembly excerpts below were re-checked against the sample on 2026-11-10 and match at every stated address.
 
 ## 3. Exported interface
 
@@ -131,7 +133,7 @@ Ordered from log strings and client code. Steps marked † are inferred.
 4. Locate `RobloxGui → Modules → en-us` (`"Could not find RobloxGui->Modules..."`). Offsets for the running Roblox version come from the downloaded RBXClient data (§7).
 5. Replace the module's bytecode with compiled `CLIENT.LUA` (`"Intercepted translation module @{:#x}"`). † The write uses the resolved `NtWriteVirtualMemory`; † suspension around the write is plausible but not traced.
 6. Roblox runs the module. `CLIENT.LUA` recognises the en-us context (`P:396`), builds its container, and calls `Activate` (op 0) until the DLL answers. The DLL logs `"Attach ping received..."`.
-7. If no ping arrives, retry, then `"Still did not receive the success ping from client. Treating this as failed."` Whether a window-refresh step remains in v1.3.65 is unverified (F-36).
+7. If no ping arrives, force a window refresh (`"Did not receive the success ping from client. Using RefreshRBXWindowV2..."`, backed by `SetWindowPos`, `RedrawWindow`, `LockWindowUpdate` and `DwmSetWindowAttribute` imports), retry, then `"Still did not receive the success ping from client. Treating this as failed."` (F-36).
 8. On `PlayerRemoving` for the local player, the client sends op 19 and the DLL reattaches after the next place loads.
 
 **Why this target.** A ModuleScript under `RobloxGui` is loaded by Roblox's own Lua as part of normal startup, so replacing its bytecode gives Xeno a Luau thread without creating a native thread or loading a DLL into the process. Xeno also bundles Roblox's original en-us table (resource `8196`), most plausibly so that translation lookups keep working after the module is replaced; how the two are combined was not traced. *This rationale is the analyst's interpretation; the mechanism is F-30.*
@@ -220,7 +222,7 @@ A watchdog restores a patched module's original bytecode if the client does not 
 0x19075d: mov   [rax+r9], cl
 ```
 
-The key pointers are zero in the file and filled by a CRT dynamic initializer at `0x3B10`, which allocates 32 bytes and stores eight immediates:
+The key pointers are zero in the file and filled by a CRT dynamic initializer at `0x3B10`, which allocates 32 bytes and stores eight immediates (the `mov dword [rax], imm32` sequence begins at `0x3B30`):
 
 ```
 0x4550FD3E 0xCABF61ED 0x92A1EF57 0x966607D0 0x21F7C5FD 0x3649BD12 0x19B33F7A 0xBBF52AA9
