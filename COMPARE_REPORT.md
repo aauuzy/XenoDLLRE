@@ -10,7 +10,7 @@
 | SHA-256 | `37e78bb4944ed703...` | `50318bc8d60477a2...` |
 | PE timestamp | 2026-05-03 06:15:55 | 2026-10-20 20:43:17 |
 | Version strings | v1.3.40 | v1.3.65 |
-| Detector score | 260 (XENO (high confidence)) | 365 (XENO (high confidence)) |
+| Detector score | 260 (XENO (heuristic match)) | 365 (XENO (heuristic match)) |
 | XOR key (unchanged→unchanged) | `3EFD5045ED61BFCA57EFA192D0076696...` | `3EFD5045ED61BFCA57EFA192D0076696...` |
 
 ## Exports

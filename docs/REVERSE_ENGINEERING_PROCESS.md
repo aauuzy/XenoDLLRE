@@ -10,7 +10,7 @@ This document describes **how** the analysis was performed: the tooling, the ord
 
 - `file TEST.dll` → `PE32+ executable for MS Windows (DLL), x86-64, 6 sections` — a native 64-bit Windows DLL, ~2.3 MB.
 - Section layout (`.text`, `.rdata`, `.data`, `.pdata`, `.rsrc`, `.reloc`) with normal names and sizes is the first indicator the binary is **not packed**. Packed binaries usually show few sections, high-entropy `.text`, and tiny import tables.
-- The PE timestamp decoded to **October 2026** — a forged/future timestamp, a common anti-attribution trick.
+- The PE timestamp decoded to **October 2026**. This was first misread as a forged/future timestamp; it is a normal build date, since analysis took place in November 2026.
 
 **Tool:** `file` (Git Bash), then Python + `pefile` for everything after.
 

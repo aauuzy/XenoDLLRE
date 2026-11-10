@@ -3,8 +3,9 @@
 
 Usage: python xeno_detector.py <file-or-directory> [-v]
 
-Scoring: every indicator has a weight; >= 60 = Xeno (high confidence),
-30-59 = executor-family (suspicious), < 30 = no match.
+Scoring: every indicator has a weight; >= 60 = likely Xeno, 30-59 = executor-family
+(suspicious), < 30 = no match. These thresholds are HEURISTICS: they have not been validated
+against a large benign sample set, so expect possible false positives/negatives.
 """
 import argparse
 import io
@@ -102,13 +103,13 @@ def scan_file(path, verbose=False):
             score += nonlocal_score[0]
         ts = pe.FILE_HEADER.TimeDateStamp
         import datetime
-        if datetime.datetime.fromtimestamp(ts, datetime.UTC).year > 2026:
+        if ts > datetime.datetime.now(datetime.UTC).timestamp():
             hits.append("future_timestamp")
             score += 5
     except pefile.PEFormatError:
         pass  # not a PE - string indicators still count (memory dumps, lua files)
 
-    verdict = ("XENO (high confidence)" if score >= 60
+    verdict = ("XENO (heuristic match)" if score >= 60
                else "executor-family (suspicious)" if score >= 30
                else "no match")
     return score, verdict, hits

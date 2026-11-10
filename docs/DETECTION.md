@@ -6,7 +6,7 @@ How to detect Xeno at every layer it touches, built from the static analysis in
 
 - **`tools/xeno_executor.yar`** — YARA pack (file + memory scanning). Validated against the sample.
 - **`tools/xeno_detector.py`** — standalone score-based PE scanner (no YARA needed).
-  `python tools/xeno_detector.py <file-or-dir> [-v]` → score ≥ 60 = Xeno, 30–59 = executor-family.
+  `python tools/xeno_detector.py <file-or-dir> [-v]` → score ≥ 60 = likely Xeno, 30–59 = executor-family. Thresholds are heuristic and untested against a large benign corpus.
 
 ---
 
@@ -24,7 +24,7 @@ How to detect Xeno at every layer it touches, built from the static analysis in
 | Payload marker | `DO NOT DELETE: BELONGS TO XENO` | Unique |
 | Env vars | `%XENO_CLIENT_PID%`, `%XENO_SERVER_PORT%`, `%XENO_VERSION%` | High |
 | Remote URLs | `x3no.pages.dev/ep.zst.enc`, `/version.txt`, `/code.lua`; `xeno.now`; `xeno.onl` | High |
-| PE anomalies | unsigned + `TimeDateStamp` in the future (2026-10-20) | Weak (context only) |
+| PE anomalies | unsigned; `TimeDateStamp` later than the scan date (flagged only when actually in the future) | Weak (context only) |
 | Bundled libs | Luau FFlag strings + zstd error strings + cpp-httplib/IXWebSocket RTTI in one binary | Medium |
 
 `tools/xeno_detector.py` weights these; a fork that strips the "Xeno" branding still trips

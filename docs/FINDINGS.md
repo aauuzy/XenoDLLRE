@@ -15,7 +15,7 @@ Everything discovered during static analysis of `TEST.dll`. Statements are based
 | Toolchain | MSVC C++ (MSVCP140 / VCRUNTIME140), console subsystem | Import table, subsystem field |
 | Packed/obfuscated | **No** — plain sections, plain strings | Section layout, readable strings |
 | Code-signed | **No** (`UnknownError`, no signer) | `Get-AuthenticodeSignature` |
-| Compile timestamp | **Forged** — 2026-10-20 (future) | PE `TimeDateStamp` |
+| Compile timestamp | 2026-10-20 (plausible build date; not forged) | PE `TimeDateStamp` |
 | PDB path leaked | `C:\Users\rizve\OneDrive\Desktop\Projects\Xeno\build\Release\net9.0-windows8.0\Xeno.pdb` | String |
 | Manifest | `asInvoker`, `uiAccess=false` | Resource 24 |
 
@@ -104,7 +104,7 @@ return function(...)
 
 ## 8. Security-relevant observations (red flags)
 
-- **Unsigned** binary with a **future-forged timestamp**.
+- **Unsigned** binary.
 - **HWID fingerprinting:** imports `GetCurrentHwProfileW`.
 - **Runtime-downloaded executable content:** `https://x3no.pages.dev/ep.zst.enc` (encrypted, zstd-compressed) — behavior can change without a DLL update.
 - Contacts a **pastebin** (`https://pastebin.com/raw/A7n0vJtR`) — purpose not determinable statically (likely a config/announcement/version channel).
@@ -154,4 +154,4 @@ Recovered by XOR-decrypting both resources (see §8) — confirmed 100% of the e
 
 ## 10. Assessment
 
-`TEST.dll` is the genuine native core of the **Xeno Roblox executor v1.3.65**. It is a cheat tool whose entire purpose is unauthorized code execution inside Roblox — it tampers with another process's memory, hijacks in-game modules, fingerprints the machine (HWID), and pulls encrypted executable payloads from the internet at runtime. From a defender's perspective it behaves like a grayware/malware-adjacent tool: unsigned, timestamp-forged, with remote payload delivery and anti-hooking syscall usage. It should not be run on a machine you care about outside of an isolated analysis environment.
+`TEST.dll` is the genuine native core of the **Xeno Roblox executor v1.3.65**. It is a cheat tool whose entire purpose is unauthorized code execution inside Roblox — it tampers with another process's memory, hijacks in-game modules, fingerprints the machine (HWID), and pulls encrypted executable payloads from the internet at runtime. From a defender's perspective it behaves like a grayware/malware-adjacent tool: unsigned, with remote payload delivery and anti-hooking syscall usage. It should not be run on a machine you care about outside of an isolated analysis environment.

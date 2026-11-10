@@ -14,7 +14,7 @@ Static-analysis project on `sample/TEST.dll` = **Xeno Roblox executor v1.3.65** 
 │   └── DETECTION.md                     detection engineering guide (5 layers)
 ├── tools/
 │   ├── decrypt_resources.py         XOR+zstd resource decryptor (works on any Xeno sample)
-│   ├── xeno_detector.py             score-based PE scanner (≥60 = Xeno)
+│   ├── xeno_detector.py             score-based PE scanner (≥60 = likely Xeno, heuristic)
 │   ├── xeno_executor.yar            6-rule YARA pack (validated on this sample)
 │   ├── update_sample.py             extracts Xeno.dll from a new installer → sample/TEST.dll
 │   ├── sample_report.py             rewrites SAMPLE_REPORT.md for the current sample (auto-run by update_sample.py)
@@ -22,14 +22,32 @@ Static-analysis project on `sample/TEST.dll` = **Xeno Roblox executor v1.3.65** 
 ├── payloads/
 │   ├── xeno_client.lua              decrypted CLIENT.LUA — Xeno's in-game client (145 KB)
 │   └── xeno_payload2.lua            decrypted resource 8196 — Roblox en-us translations (337 KB)
-└── sample/
+└── sample/                          ← local only, gitignored
     ├── TEST.dll                     current sample = Xeno v1.3.65 (handle as live malware)
     └── TEST-v1.3.40.dll             archived older build for comparison
 
-Also present: `app/` — the Xeno installers the samples were extracted from,
+Local-only (gitignored, not in the repo): `app/` — the Xeno installers the samples were extracted from;
 and `COMPARE_REPORT.md` — auto-generated diff of v1.3.40 → v1.3.65.
 ```
 
+## Samples and installers are NOT included
+
+`sample/` and `app/` are listed in `.gitignore` on purpose: they hold live malware-adjacent binaries (Xeno DLLs and installers) and are not redistributed here. Every command below that mentions `sample/TEST.dll` or `app/Xeno-*.exe` needs you to supply those files yourself:
+
+1. Create `sample/` and `app/` in the repo root.
+2. Obtain a Xeno installer legitimately for analysis and put it in `app/`, e.g. `app/Xeno-v1.3.65.exe`.
+3. Run `python tools/update_sample.py app/Xeno-v1.3.65.exe` to extract it to `sample/TEST.dll`.
+4. Analyze only inside an isolated VM. Never run the DLL or installer on a machine you care about.
+
+Without the samples you can still read the docs, use `tools/xeno_executor.yar` and `tools/xeno_detector.py` against your own files, and inspect the recovered scripts in `payloads/`.
+
+## Licensing
+
+Original code and documentation: MIT, see `LICENSE`. The files in `payloads/` are decrypted third-party content recovered from Xeno (`xeno_client.lua`) and Roblox (`xeno_payload2.lua`, locale strings). They are **not** covered by the MIT license, remain the property of their respective owners, and are included only for research and detection purposes.
+
+## Detection caveat
+
+The detector's score thresholds (≥60 likely Xeno, 30-59 executor-family) are heuristics. They are validated only against the two samples analyzed here, not a large benign corpus. Treat hits as leads, not verdicts.
 ## Version-tracking workflow
 
 ```bash

@@ -96,7 +96,7 @@ XOR key: **unchanged** (`3EFD5045ED61BFCA57EFA192D0076696FDC5F72112BD49367A3FB31
 
 ```
 D:\ReverseEngginerAtt1\sample\TEST.dll
-  score=365  verdict=XENO (high confidence)
+  score=365  verdict=XENO (heuristic match)
     + credit_rizve
     + pdb_path
     + attach_module

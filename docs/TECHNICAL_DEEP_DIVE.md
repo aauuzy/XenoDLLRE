@@ -666,7 +666,7 @@ On boot: `"Loaded existing cache: {} RBXClients, {} RBXBytecode, {} RBXMFlags, {
 | Ingress tool transfer (T1105) | curl/OpenSSL downloads of offsets & payloads at runtime |
 | System information discovery | HWID via `GetCurrentHwProfileW`; process/window enumeration |
 | Input/clipboard manipulation | `keybd_event`, `mouse_event`, clipboard APIs |
-| Anti-forensics (weak) | Forged future compile timestamp; unsigned binary; no PDB shipped |
+| Anti-forensics (weak) | Unsigned binary; no PDB shipped |
 | Persistence (weak, per-session) | Cache file for re-attach; autoexec directory for auto-run scripts |
 
 ---
