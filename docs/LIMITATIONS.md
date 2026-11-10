@@ -16,4 +16,8 @@ What this research does not establish, and why it matters for reading the other 
 
 **Unresolved questions.** Listed at the end of `FINDINGS.md`. The most consequential are the actual script identity of the hijacked module and whether the APIs Xeno blocks for its users are reachable from it (F-47, F-90).
 
+**Prevalence.** No public data establishes how many people use Xeno. Discord membership and third-party download figures are not usage counts (`THREAT_ASSESSMENT.md` §2).
+
+**Countermeasures are proposals.** `COUNTERMEASURES.md` is written without knowledge of Roblox's existing detections or internal constraints; some measures may already exist or be impractical.
+
 **Scope.** This is research on one third-party executor. It says nothing about other executors, including Potassium, and does not by itself establish any vulnerability in Roblox (see `DISCLOSURE.md`).

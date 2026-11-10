@@ -32,6 +32,7 @@ The documentation cites these line numbers as evidence. Each row describes the c
 | 28–44 | `CoreGui` folder named after the PID, `Pointer` and `Loadstring` subfolders, `Message` named `DO NOT DELETE: BELONGS TO XENO` | In-game artifacts |
 | 59 | `shared.__Xeno = Xeno` | In-game artifacts |
 | 61–65 | `Urls` table: `version.txt`, `code.lua`, `http://localhost:%XENO_SERVER_PORT%` | Remote channels, control plane |
+| 122 | `HttpService:RequestInternal(options):Start(...)`: the transport for all calls to the localhost server | Control plane (G-2) |
 | 137–175 | `RServer`: `POST /f?e=<op>` with JSON `{c, p}`; custom endpoints send raw `text/plain`; a missing status is treated as 410 | Protocol |
 | 193–227 | `XFS` opcode table, 0–21, plus client-only `WriteFile = -1` | Protocol |
 | 309 | `RawHttpGet` | Remote channels |

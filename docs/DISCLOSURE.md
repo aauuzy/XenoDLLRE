@@ -45,6 +45,10 @@ Based on Roblox's HackerOne policy (version dated 2026-03-04, read 2026-11-10; a
 - No requests to Roblox services, Xeno infrastructure or the referenced pastebin as part of the documented method.
 - No other users' data accessed; personal information is limited to the attribution the Xeno developer publishes in the binary itself.
 
+## Sharing this research with Roblox
+
+Roblox's developer forum directs exploit information that could be misused if posted publicly to its HackerOne program ([DevForum, About the Bug Reports category](https://devforum.roblox.com/t/about-the-bug-reports-category/16/1)). The intended route is a HackerOne report that states plainly it is defensive intelligence rather than a vulnerability claim, points to `BRIEFING.md`, and offers the samples privately. Such a report may be closed as informational or not applicable; that outcome is acceptable because the goal is that the right team sees it, not a bounty.
+
 ## Contact
 
 Corrections to the analysis: open an issue in this repository. Suspected Roblox vulnerabilities must go to Roblox's HackerOne program, not to public issues.
