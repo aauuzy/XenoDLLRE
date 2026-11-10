@@ -26,7 +26,7 @@ How the analysis was performed, in the order it happened, and why each step was 
 
 **3. Imports.** Grouped by DLL to map capabilities before reading code: libcurl/OpenSSL (HTTPS client), WS2_32 (sockets), process and memory APIs (cross-process access), USER32 window APIs (window discovery and manipulation), named-pipe APIs (IPC), `GetCurrentHwProfileW` (hardware identifier). Imports show what the program *can* do, not what it does; each was later tied to strings or code where possible.
 
-**4. Strings.** ASCII (`[\x20-\x7e]{4,}`, 10,366 strings) and UTF-16 extraction, filtered by keyword. Because the binary is not obfuscated and logs with fmt-style `{}` placeholders, searching for `[{}` and `{}]:` recovered component names (`RBXClient`, `XenoServer`, `::Loadstring`, `::PlayerRemoving`, `::UnlockModule`, …) and most of the attach sequence. UTF-16 strings contained nothing of interest.
+**4. Strings.** ASCII (`[\x20-\x7e]{4,}`, 10,366 strings) and UTF-16 extraction, filtered by keyword. Because the binary is not obfuscated and logs with fmt-style `{}` placeholders, searching for `[{}` and `{}]:` recovered component names (`RBXClient`, `XenoServer`, `::Loadstring`, `::PlayerRemoving`, `::UnlockModule`, …) and most of the attach sequence. UTF-16 strings were first judged uninteresting; the cross-reference pass in Phase 6 found that they identify the Discord IPC pipe and the Discord library's registry paths.
 
 **5. Resources.** Besides the manifest, two resources of custom type `8194` (IDs `8192`, `8196`) with the same first five bytes and near-maximal entropy (≈7.99 bits/byte). Entropy alone cannot separate compression from encryption, since zstd output is also close to 8 bits/byte. What pointed to encryption was that neither blob began with the zstd magic even though the string `"Could not decompress a Xeno resource"` showed zstd was involved.
 
@@ -66,6 +66,22 @@ A full review of the repository against the client source and the generated repo
 
 The current public installer was extracted with 7-Zip (NSIS layer, then the embedded `app-64.7z`), and its `Xeno.dll` matched the analyzed build's SHA-256. On that copy: every disassembly excerpt in [`ARCHITECTURE.md`](ARCHITECTURE.md) was re-checked at its address with capstone; imports and strings behind the unverified findings were checked (F-36, F-86, F-98 updated); the signature was parsed and its digest recomputed (F-04); both resources decrypted to the hashes in [`payloads/README.md`](../../payloads/README.md); [`SAMPLE_REPORT.md`](../../reports/SAMPLE_REPORT.md) was regenerated and the detector and YARA rules were run. [`tools/update_sample.py`](../../tools/update_sample.py) was also run end to end on the installer.
 
+## Phase 6 — Cross-reference pass on both builds (November 2026)
+
+With both samples available locally, the internal functions that earlier phases had described from log strings were mapped with [`tools/xrefs.py`](../../tools/xrefs.py). It takes function boundaries from `.pdata` (folding chained unwind entries into their parent), disassembles each function with capstone, and records every RIP-relative operand and direct call. Queries then answer three questions: which function uses a given string, import or global; which functions call a given function; and which global receives a `GetProcAddress` result.
+
+The approach was the one that broke the resource encryption: start from log strings and imports, then read outwards.
+
+- **Writes into Roblox.** The six `Nt*` pointers stored by `Initialize` have no other reference. `WriteProcessMemory` is used by the functions that hold the attach log strings, and `VirtualAllocEx` by one helper those functions call. This replaced the earlier inference that writes went through `NtWriteVirtualMemory` (F-31). The same query on v1.3.40 showed its attach function calling `NtSuspendProcess`/`NtResumeProcess` (F-99).
+- **Placement in the attach sequence.** Interleaving each attach routine's string references with its import calls placed the allocation and writes between the `Locales` lookup and the interception log (F-30).
+- **Exports.** Annotating `Execute`'s indirect calls with their import names showed that the "helper" was `_Mtx_lock` and the "virtual call" was `GetExitCodeProcess` (F-13, F-14). Following `SetSetting`'s case 0 to the reader of its flag explained setting 0 (F-17).
+- **Unexplained imports and strings.** The named-pipe and Steam-registry code turned out to be the Discord RPC library, identified by its wide strings (F-55, F-83, F-87). The pastebin URL is the argument of the first offsets fetch (F-34).
+- **Access masks.** Reading the constants loaded before each `OpenProcess` call gave the attach handle's rights (F-32).
+
+[`COMPARE_REPORT.md`](../../reports/COMPARE_REPORT.md) was regenerated from the real v1.3.40 sample (F-98), and the second build's signing certificate was parsed (F-04). The results are pinned by [`tests/test_samples.py`](../../tests/test_samples.py), which runs only when the matching samples are present.
+
+The pass stayed at the level of which code calls what. It did not reconstruct the attach routine's memory-scanning logic, the instruction patterns it searches for, or any Roblox structure offsets (see [`DISCLOSURE.md`](../DISCLOSURE.md)).
+
 ## Reproducing
 
 With a legitimately obtained v1.3.65 installer in `app/`:
@@ -74,6 +90,9 @@ With a legitimately obtained v1.3.65 installer in `app/`:
 python tools/update_sample.py app/Xeno-v1.3.65.exe      # → sample/TEST.dll, SAMPLE_REPORT.md
 python tools/decrypt_resources.py sample/TEST.dll payloads/
 sha256sum payloads/xeno_resource_*.bin                  # compare with payloads/README.md
+python tools/xrefs.py sample/TEST.dll --string "Intercepted translation module" --callers 2
+python tools/xrefs.py sample/TEST.dll --resolved NtWriteVirtualMemory
+python -m unittest tests.test_samples -v                # pins every X-coded finding
 ```
 
 Disassembly listings in [`ARCHITECTURE.md`](ARCHITECTURE.md) can be checked at the stated RVAs in any disassembler.

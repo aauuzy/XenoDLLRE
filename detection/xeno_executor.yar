@@ -5,6 +5,10 @@ import "pe"
  * Built from static analysis of Xeno v1.3.40 and v1.3.65. See docs/defense/DETECTION.md for
  * per-rule scope, validation status, and known false-positive sources.
  *
+ * The Authenticode certificate rule is in xeno_signer.yar: it needs pe.signatures, which only
+ * exists when YARA is built with OpenSSL (the Windows yara-python wheels are not), and a rule
+ * file that fails to compile loses every rule in it.
+ *
  * File rules require a PE header. Memory/artifact rules do not, and will therefore also match
  * documentation or threat reports that quote the same strings.
  */
@@ -30,30 +34,19 @@ rule Xeno_Executor_DLL_HighConf
         uint16(0) == 0x5A4D and 2 of them
 }
 
-rule Xeno_Signer_Certificate
-{
-    meta:
-        description = "Authenticode signature from the self-signed 'Rizve A' certificate used on Xeno v1.3.65"
-        scope = "file"
-        sha256_fingerprint = "AEE2FA8DBD1108B7664553143E0ABDF7D41EC87A59CBDB0A2D4D0B84C2B30A21"
-        note = "certificate valid 2026-05-10 to 2027-05-10; a renewed certificate will have a new serial"
-    condition:
-        uint16(0) == 0x5A4D and
-        for any s in pe.signatures : (
-            s.subject contains "Rizve A" and
-            s.serial == "3f:da:0d:2c:31:c5:c2:a8:47:90:e6:e2:f2:0d:13:06"
-        )
-}
-
 rule Xeno_ResourceKey_Initializer
 {
     meta:
         description = "Xeno resource XOR key stored as immediates by the CRT initializer"
         scope = "file"
+        note = "v1.3.65 stores the key through a heap pointer (mov [rax+n], imm32); v1.3.40 builds it on the stack (mov [rbp+disp8], imm32)"
     strings:
         $init = { C7 00 3E FD 50 45 C7 40 04 ED 61 BF CA }
+        $stack1 = { C7 45 ?? 3E FD 50 45 }
+        $stack2 = { C7 45 ?? ED 61 BF CA }
+        $stack3 = { C7 45 ?? 57 EF A1 92 }
     condition:
-        uint16(0) == 0x5A4D and $init
+        uint16(0) == 0x5A4D and ($init or all of ($stack*))
 }
 
 rule Xeno_ResourceKey_Memory

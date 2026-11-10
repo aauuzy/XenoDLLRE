@@ -7,15 +7,17 @@ How Xeno's components fit together, reconstructed from static analysis of the DL
 ## 1. Components
 
 ```
-┌──────────────┐  exports / named pipe (F-55)  ┌───────────────────────────────┐
+┌──────────────┐  exports (F-10, F-55)          ┌───────────────────────────────┐
 │  Xeno UI     │ ─────────────────────────────► │ Xeno.dll (native core)        │
 │  (Electron)  │                                │  • offsets fetch (curl)       │
 └──────────────┘                                │  • Luau compiler              │
                                                 │  • localhost HTTP/WS server   │
                                                 │  • cross-process memory I/O   │
+                                                │  • Discord RPC (discord-ipc)  │
                                                 └──────┬──────────────▲─────────┘
                                    bytecode writes     │              │ POST /f /ls /rq /qt /cb
-                                   (Nt*VirtualMemory)  ▼              │ (HttpService:RequestInternal)
+                     (VirtualAllocEx +                 ▼              │ (HttpService:RequestInternal)
+                      WriteProcessMemory, F-31)
                                                 ┌───────────────────────────────┐
                                                 │ RobloxPlayerBeta.exe          │
                                                 │  en-us module → CLIENT.LUA    │
@@ -23,7 +25,7 @@ How Xeno's components fit together, reconstructed from static analysis of the DL
                                                 └───────────────────────────────┘
                                                                │ HTTPS
                                                                ▼
-                                         x3no.pages.dev: ep.zst.enc, code.lua, version.txt
+                 pastebin (primary offsets); x3no.pages.dev: ep.zst.enc, code.lua, version.txt
 ```
 
 The DLL never runs Luau inside Roblox by itself. It writes compiled bytecode into ModuleScripts that the Roblox client already executes or that the Xeno client `require()`s, and serves everything else over loopback HTTP.
@@ -71,30 +73,43 @@ mov  r15, rdx                      ; PID array
 mov  r12, rcx                      ; script
 ...
 mov  esi, dword [r15 + rbp*4]      ; pid = pids[i]
-lea  rcx, [rip+0x893C2]
-call qword [rip+0x1E194]           ; imported helper, purpose not established
+lea  rcx, [rip+0x893C2]            ; g_clientsMutex (0x216810)
+call qword [rip+0x1E194]           ; MSVCP140!_Mtx_lock
 test eax, eax
-jne  <skip>
-mov  eax, dword [rip+0x893FA]
-cmp  eax, 0x7FFFFFFF               ; sentinel check on a global
-je   <abort>
-mov  rbx, qword [rip+0xC4EF4]      ; client vector begin
+jne  <throw>
+mov  eax, dword [rip+0x893FA]      ; mutex count field (0x21685C)
+cmp  eax, 0x7FFFFFFF               ; std::mutex::lock's recursion check
+je   <throw>
+mov  rbx, qword [rip+0xC4EF4]      ; client vector begin (shared_ptr, stride 0x10)
 mov  rdi, qword [rip+0xC4EF5]      ; client vector end
+mov  rcx, qword [rbx]              ; client
 cmp  dword [rcx + 0x2D0], esi      ; client->pid == pid ?
+jne  <next>
+mov  rcx, qword [rcx]              ; client->hProcess (+0x00)
+lea  rdx, [rsp+0x50]
+call qword [rip+0x1DE2F]           ; KERNEL32!GetExitCodeProcess
+cmp  dword [rsp+0x50], 0x103       ; STILL_ACTIVE ?
 ...
-call qword [rip+0x1DE2F]           ; virtual call with std::string(script)
+lea  r8, [rip+0xFD0]               ; thread procedure 0x18E540
+call qword [rip+0x1E63E]           ; _beginthreadex({client, ctrl, script})
+call qword [rip+0x1E040]           ; _Thrd_detach
 ```
 
-*Reconstruction* (return value and helper semantics are inferred, F-14):
+*Reconstruction* (F-13, F-14):
 
 ```cpp
-int Execute(const char* script, const int* pids, size_t count) {
+void Execute(const char* script, const int* pids, size_t count) {
     for (size_t i = 0; i < count; ++i) {
-        if (helper(pids[i]) != 0) continue;
-        if (g_state == INT_MAX) return /* not ready */;
-        for (auto& client : g_clients)
-            if (client->pid == pids[i])          // +0x2D0
-                client->QueueScript(std::string(script));
+        std::shared_ptr<RBXClient> target;
+        {
+            std::lock_guard lock(g_clientsMutex);
+            for (auto& c : g_clients)
+                if (c->pid == pids[i] && IsAlive(c->hProcess))   // +0x2D0, +0x00
+                    { target = c; break; }
+        }
+        if (target)
+            std::thread([target, script] { CompileWriteVerify(target, script); }).detach();
+            // thread procedure 0x18E540 -> 0x117980 (F-41)
     }
 }
 ```
@@ -105,7 +120,24 @@ Acquires a lazily initialized SRW lock, walks the client vector, and skips objec
 
 ### 3.5 `SetSetting` — 0x18D950
 
-`switch (id)`: `1` toggles Discord Rich Presence and logs `"RPC is Enabled"` / `"RPC was disabled"`; `0` jumps to a separate handler at `0x18DD10` that was not analyzed (F-17).
+`switch (id)`: `1` toggles Discord Rich Presence and logs `"RPC is Enabled"` / `"RPC was disabled"`; `0` jumps to `0x18DD10`, which only stores `value != 0` in a byte flag:
+
+```asm
+0x18DD10: test  edx, edx
+          setne byte [rip+0xC4290]   ; g_setting0 (0x251FA9)
+          jmp   <epilogue>
+```
+
+The flag's only reader is the background loop at `0x18C910`, which terminates other Xeno processes and then calls the internal attach routine every 200 ms with `!g_setting0` (F-17, F-84):
+
+```asm
+0x18CA50: cmp  byte [rip+0xC5552], 0  ; g_setting0
+          je   0x18CA75               ; -> mov cl, 1
+          xor  ecx, ecx               ; cl = 0
+0x18CA5B: call 0x18C040               ; internal attach routine (same target as the Attach export)
+          ...                         ; sleep 200 ms (0xC8)
+          jmp  0x18CA50
+```
 
 ### 3.6 `Initialize` — 0x18CA80
 
@@ -121,20 +153,21 @@ lea  rdx, "NtReadVirtualMemory"    -> ...
 lea  rdx, "NtWriteVirtualMemory"   -> ...
 ```
 
-These are ordinary calls through `ntdll` exports, not direct system calls. `NtSuspendProcess`, `NtResumeProcess` and the lock/unlock pair have no documented Win32 wrapper, which is a sufficient reason to resolve them this way. The remainder of `Initialize` (directory setup, cache load, offsets fetch, server start) is inferred from log strings, not traced.
+These are ordinary calls through `ntdll` exports, not direct system calls. In v1.3.65 none of the six stored pointers (`.data` `0x251FC0`–`0x251FE8`) is referenced outside `Initialize`; all cross-process memory access uses the imported Win32 functions (F-31, F-86). v1.3.40 called `NtSuspendProcess` and `NtResumeProcess` from its attach function (F-99), so the resolution looks like a leftover. The remainder of `Initialize` (directory setup, cache load, server start) is inferred from log strings, not traced.
 
 ## 4. Attach
 
-Ordered from log strings and client code. Steps marked † are inferred.
+The main attach routine is `0x1124B0`; `0x14D360` is a reduced copy used to reattach after `PlayerRemoving`. Steps are ordered by the routine's log strings and cross-references (F-30–F-36). Steps marked † are inferred.
 
-1. Enumerate processes and create an `RBXClient` per Roblox PID (`"Creating new RBXClient: {}"`); reuse cached PIDs (`"Reattaching to cached client PID: {}"`).
-2. Refuse elevated targets when not elevated (F-32).
-3. Wait for the client window and the DataModel.
-4. Locate `RobloxGui → Modules → en-us` (`"Could not find RobloxGui->Modules..."`). Offsets for the running Roblox version come from the downloaded RBXClient data (§7).
-5. Replace the module's bytecode with compiled `CLIENT.LUA` (`"Intercepted translation module @{:#x}"`). † The write uses the resolved `NtWriteVirtualMemory`; † suspension around the write is plausible but not traced.
-6. Roblox runs the module. `CLIENT.LUA` recognises the en-us context (`P:396`), builds its container, and calls `Activate` (op 0) until the DLL answers. The DLL logs `"Attach ping received..."`.
-7. If no ping arrives, force a window refresh (`"Did not receive the success ping from client. Using RefreshRBXWindowV2..."`, backed by `SetWindowPos`, `RedrawWindow`, `LockWindowUpdate` and `DwmSetWindowAttribute` imports), retry, then `"Still did not receive the success ping from client. Treating this as failed."` (F-36).
-8. On `PlayerRemoving` for the local player, the client sends op 19 and the DLL reattaches after the next place loads.
+1. A background loop (`0x18C910`) terminates other Xeno instances, then calls the client-scan routine `0x18C040` (the `Attach` export's target) every 200 ms (F-17, F-84). It enumerates processes (`CreateToolhelp32Snapshot`, via `0x18B380`) and, for a new Roblox PID, starts `0x18B850` (`"Creating new RBXClient: {}"`), reusing cached PIDs.
+2. `0x111C30` opens the process with `PROCESS_ALL_ACCESS`, inheritable, and refuses elevated targets when not elevated (F-32). It then starts a thread (`0x11D7A0`) that runs the per-client attach routine `0x1124B0`.
+3. Fetch the RBXClient (offsets) data: pastebin first, `ep.zst.enc` second (F-33, F-34).
+4. Wait for the client window and the DataModel, then `LocalPlayer` and `CoreGui`. The log strings show a cached or scanned render-view address, a string-address lookup and an instruction-candidate search. Start the Bytecode Patch Watcher thread (F-45).
+5. Locate `RobloxGui → Modules → … → Locales → en-us` (`"Could not find RobloxGui->Modules..."`, `"Could not find en-us locale module..."`).
+6. Write into the Roblox process: allocate with `VirtualAllocEx` and write with `WriteProcessMemory` (helper `0x10D6B0`), write again, log `"Intercepted translation module @{:#x}"`, write once more (F-31). The process is not suspended. † What each write contains (compiled `CLIENT.LUA`, the module's bytecode pointer) is inferred from the client side, not traced.
+7. Roblox runs the module. `CLIENT.LUA` recognises the en-us context (`P:396`), builds its container, and calls `Activate` (op 0) until the DLL answers. The DLL logs `"Attach ping received..."` (`0x14CF80`).
+8. If no ping arrives, call the window-refresh routine `0x111490` (`"...Using RefreshRBXWindowV2..."`), then `"...Attempting to restart current thread..."` (F-35, F-36).
+9. On `PlayerRemoving` for the local player, the client sends op 19 and `0x14D360` reattaches after the next place loads; if its ping also fails it logs `"...Treating this as failed."`.
 
 **Why this target.** A ModuleScript under `RobloxGui` is loaded by Roblox's own Lua as part of normal startup, so replacing its bytecode gives Xeno a Luau thread without creating a native thread or loading a DLL into the process. Xeno also bundles Roblox's original en-us table (resource `8196`), most plausibly so that translation lookups keep working after the module is replaced; how the two are combined was not traced. *This rationale is the analyst's interpretation; the mechanism is F-30.*
 
@@ -255,7 +288,7 @@ std::string LoadXenoResource(int id) {
 
 ## 7. Offsets and remote content
 
-Roblox ships frequently, so Xeno does not hard-code internal offsets. At startup the DLL downloads zstd-compressed RBXClient data, falling back to `https://x3no.pages.dev/ep.zst.enc` if the primary source fails. Entries are keyed by Roblox version; one version can alias another's offsets, and unknown versions fall back to a default with a warning (F-33). The primary source is unknown (F-34).
+Roblox ships frequently, so Xeno does not hard-code internal offsets. At the start of each attach the DLL downloads zstd-compressed RBXClient data from `https://pastebin.com/raw/A7n0vJtR` (primary; the request is made with timeouts of 2 s and 8 s and needs HTTP 2xx), falling back to `https://x3no.pages.dev/ep.zst.enc` if that request fails or the data does not decompress. Entries are keyed by Roblox version; one version can alias another's offsets, and unknown versions fall back to a default with a warning (F-33, F-34). Neither URL was fetched for this research.
 
 The client separately fetches `version.txt` (update notice) and `code.lua`, which it runs with the full Xeno environment on every attach (F-63).
 
@@ -273,8 +306,8 @@ Mapped conservatively; Xeno is software the user installs and runs on purpose, s
 
 | ATT&CK technique | Mechanism |
 |---|---|
-| T1055 Process Injection | Writing compiled Luau bytecode into the Roblox process's memory |
-| T1106 Native API | `Nt*` functions resolved from `ntdll` |
+| T1055 Process Injection | `VirtualAllocEx` + `WriteProcessMemory` of compiled Luau bytecode into the Roblox process; no remote thread |
+| T1106 Native API | `Nt*` functions resolved from `ntdll`; only v1.3.40 calls any of them (`NtSuspendProcess`/`NtResumeProcess`) |
 | T1027 / T1140 Obfuscated files; Deobfuscate/Decode | XOR+zstd resources; `ep.zst.enc` |
 | T1105 Ingress Tool Transfer | Runtime download of offsets and `code.lua` |
 | T1057 Process Discovery | Process and window enumeration to find Roblox clients |
