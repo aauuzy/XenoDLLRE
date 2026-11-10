@@ -1,6 +1,8 @@
 # Findings
 
-Every finding about Xeno v1.3.65 (`Xeno.dll`, SHA-256 `50318bc8d60477a2402440c4989611ba9640cf6a709b5ec9d4c44e3860e99049`), with its evidence and a confidence level. `ARCHITECTURE.md` explains how the pieces fit together; this document is the authoritative list of what is claimed.
+Every finding about Xeno v1.3.65 (`Xeno.dll`, SHA-256 `50318bc8d60477a2402440c4989611ba9640cf6a709b5ec9d4c44e3860e99049`), with its evidence and a confidence level.
+
+DLL-level evidence (addresses, imports, strings, signature) was re-verified on 2026-11-10 against a copy extracted from the public v1.3.65 installer, which is byte-identical to the analyzed build (F-08). `ARCHITECTURE.md` explains how the pieces fit together; this document is the authoritative list of what is claimed.
 
 ## Confidence levels
 
@@ -33,9 +35,10 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | F-01 | The sample is the native core of the Xeno Roblox executor, version `v1.3.65`. | Confirmed | `S`: `"Xeno Version: "`, `https://xeno.now`; `D`: `Version` export returns `"v1.3.65"`; `P:1` header `v1.3.65 CLIENT.LUA` |
 | F-02 | PE32+ DLL, x86-64, 2,362,704 bytes, six standard sections, PE timestamp 2026-10-20 20:43:17 UTC. | Confirmed | `SAMPLE_REPORT.md` |
 | F-03 | Not packed: standard section names and sizes, readable strings, intact `.pdata`, no writable+executable section. | Confirmed | Section table in `SAMPLE_REPORT.md` |
-| F-04 | Signature status. `Get-AuthenticodeSignature` returned `UnknownError`, which is not the `NotSigned` status an unsigned file produces; it usually means a signature blob exists but could not be validated. The Sectigo time-stamping CA URLs in the binary appear inside DER certificate fragments, which a PEM CA bundle would not contain. Whether the file carries an (invalid or unverifiable) signature is unresolved; `SAMPLE_REPORT.md` now records the certificate-table size. | Unverified | `S`; signature check output |
+| F-04 | Authenticode-signed with a **self-signed** certificate, subject and issuer `CN=Rizve A`, serial `3FDA0D2C31C5C2A84790E6E2F20D1306`, valid 2026-05-10 to 2027-05-10, SHA-256 fingerprint `AEE2FA8D…C2B30A21`. The signed SHA-256 file digest matches the file, so it has not been modified since signing. The signature carries a Sectigo RFC 3161 timestamp of 2026-10-20 20:44:16 UTC, about one minute after the PE timestamp. Windows reports `UnknownError` because the chain does not lead to a trusted root. | Confirmed | 8,016-byte certificate table at file offset `0x23EE00`; digest recomputed and compared; certificate parsed with OpenSSL |
 | F-05 | Built with MSVC (MSVCP140, VCRUNTIME140, UCRT imports). | Confirmed | `I` |
 | F-06 | Embedded PDB path `C:\Users\rizve\OneDrive\Desktop\Projects\Xeno\build\Release\net9.0-windows8.0\Xeno.pdb`. The `net9.0-windows8.0` component is a .NET target-framework folder name, which is unusual for a native DLL shipped in an Electron installer; the build arrangement behind it is unknown. | Confirmed (path) / Unresolved (meaning) | `S` |
+| F-08 | Distributed as an NSIS installer wrapping an Electron app (`app-64.7z`). `Xeno.dll` ships at `resources/public/Xeno.dll` alongside `libcurl.dll`, `libssl-3-x64.dll`, `libcrypto-3-x64.dll` and the MSVC runtime. The public installer `Xeno-v1.3.65.exe` (88,851,592 bytes, SHA-256 `829c1e8861cadb5835fe968b98d06254254e6a4120250d9f5cf612d3f152c7a1`) contains a DLL identical to the analyzed one. | Confirmed | Installer extracted with 7-Zip; DLL SHA-256 compared |
 | F-07 | Maintainer attribution "Rizve", contact `rizve@xeno.onl`, Discord `.rizve`. These are self-published by the developer in the binary and client header. | Confirmed | `S`; `P:1-12` |
 
 ## 2. Exported interface
@@ -72,7 +75,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | F-33 | Per-Roblox-version memory offsets are downloaded at runtime and zstd-compressed; there is a primary endpoint and a secondary `https://x3no.pages.dev/ep.zst.enc`, with alias and default-version fallbacks. | Strongly supported | `S`: `"RBXClient data resource decompression failed... Using secondary endpoint"`, `"Offsets for version "{}" points to "{}""`, `"...Using offsets from default version"` |
 | F-34 | The primary offsets endpoint URL. | Unverified | Not present as a plain string. Possibly built at runtime or fetched via the pastebin URL (F-55) |
 | F-35 | The injected client signals success through the localhost server; if no ping arrives, Xeno escalates through further attempts and then gives up. | Strongly supported | `S`: `"Attach ping received from client..."`, `"Still did not receive the success ping from client. Treating this as failed."` |
-| F-36 | In v1.3.65 the fallback includes a forced window refresh (`RefreshRBXWindowV2`). | Unverified | Two `RefreshRBXWindowV2` strings were removed in v1.3.65 (`C`); whether the routine survives in v1.3.65 has not been checked |
+| F-36 | v1.3.65 still has a forced window-refresh fallback (`RefreshRBXWindowV2`) when the success ping is late. Two related strings were removed in v1.3.65, but the main one remains and the window APIs it needs are imported. The routine itself was not disassembled. | Strongly supported | `S`: `"Did not receive the success ping from client. Using RefreshRBXWindowV2..."`; `I`: `SetWindowPos`, `RedrawWindow`, `LockWindowUpdate`, `DwmSetWindowAttribute` (dwmapi's only import); `C` |
 | F-37 | After the player leaves a place, Xeno reattaches (`PlayerRemoving`, op 19). | Strongly supported | `S`: `"[::PlayerRemoving]: Player leaving ping recieved. We have to reattach."`; `P:4803-4811` |
 
 ## 5. Execution
@@ -131,7 +134,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | F-83 | Reads Steam registry values. Purpose unknown. | Confirmed (strings) / Unverified (purpose) | `S`: `"Error opening Steam key"`, `"Error reading SteamExe key"` |
 | F-84 | Terminates other running Xeno instances on start. | Strongly supported | `S`: `"Terminated same existing Xeno process: {}"` |
 | F-85 | Imports for clipboard writes and synthesized input (`SetClipboardData`, `keybd_event`, `mouse_event`), used to back the script API (`setclipboard`, `keypress`, `mouse*`). | Strongly supported | `I`; corresponding client functions |
-| F-86 | `VirtualAllocEx`/`WriteProcessMemory` are imported in v1.3.65. | Unverified | Listed in the original import analysis; `"Failed to allocate to Client"` was removed in v1.3.65 (`C`); re-check the v1.3.65 import table |
+| F-86 | `OpenProcess`, `VirtualAllocEx`, `ReadProcessMemory` and `WriteProcessMemory` are imported in v1.3.65; `CreateRemoteThread` is not. Where the Win32 memory functions are used, as opposed to the resolved `Nt*` functions, was not traced. | Confirmed (imports) | `I` |
 
 ## 10. Security-relevant observations
 
@@ -150,8 +153,7 @@ See `DISCLOSURE.md` for how these map to Roblox's security boundaries.
 | F-95 | Attach reworked: menu/home-page bytecode set and `RefreshQueueOnTeleport` strings removed; translation-module and `PlayerRemoving` strings added. | Confirmed (strings) | `C` |
 | F-96 | Offset data terminology changed from "ecs pattern data" to "inp data". | Confirmed (strings) | `C` |
 | F-97 | `dwmapi.dll` import added; BytecodePatchWatcher added; HTTP/WebSocket server strings expanded. | Confirmed | `C` |
-| F-98 | `AttachThreadInput` appears in the removed-strings list, suggesting a USER32 import was dropped. | Inferred | `C`. The function-level import diff in the committed `COMPARE_REPORT.md` was produced by a version of `compare_samples.py` that compared only the first DLL; regenerate it to confirm |
-
+| F-98 | `AttachThreadInput` is not imported by v1.3.65 but appears in the v1.3.40 string diff, suggesting the import was dropped. | Confirmed (absent in v1.3.65) / Unverified (present in v1.3.40) | `I`; `C`. Confirm by regenerating `COMPARE_REPORT.md` with the fixed `compare_samples.py` |
 ---
 
 ## Corrections to earlier revisions
@@ -167,8 +169,9 @@ Earlier revisions of this repository contained the following errors. They are re
 | `FindResourceW(..., RT_RCDATA /*8194*/)` | `RT_RCDATA` is 10; 8194 is a custom resource type. |
 | Detection: compare the en-us module's bytecode hash server-side. | Servers cannot read client memory; this is a client-integrity check. |
 | Hijacked module runs with CoreGui-level (high) privileges. | Not established. The client's identity functions are stubs (F-47). |
-| `RefreshRBXWindowV2` reconstruction with specific call sequence. | Reconstructed from imports only; removed. Its status in v1.3.65 is unverified (F-36). |
-| The binary is unsigned; the Sectigo strings are curl's CA bundle. | `UnknownError` does not mean unsigned, and DER certificate fragments do not come from a PEM bundle. Status unresolved (F-04). |
+| `RefreshRBXWindowV2` reconstruction with specific call sequence. | Reconstructed from imports only; removed. The fallback exists in v1.3.65 (F-36), but its body has not been disassembled. |
+| The binary is unsigned; the Sectigo strings are curl's CA bundle. | The file is signed with a self-signed `Rizve A` certificate and timestamped by Sectigo; the Sectigo strings belong to the timestamp chain (F-04). |
+| (Raised during the November review) `RefreshRBXWindowV2` was removed in v1.3.65. | Incorrect. Only two of its strings were removed; the fallback string and its window imports are present in v1.3.65 (F-36). The original documentation was right. |
 | `decrypt_resources.py` works on any Xeno sample. | Verified on v1.3.40 and v1.3.65 only. |
 | Unsigned binary / no PDB as anti-forensics; cache file as persistence. | Removed from the technique mapping; neither meets the ATT&CK definitions. |
 
@@ -176,6 +179,6 @@ Earlier revisions of this repository contained the following errors. They are re
 
 1. What identity does the hijacked en-us module run at, and are the APIs in F-90 actually callable from it?
 2. Primary offsets endpoint (F-34) and the role of the pastebin (F-66).
-3. Whether `RefreshRBXWindowV2` and `VirtualAllocEx` usage remain in v1.3.65 (F-36, F-86).
-4. Meaning of the .NET-style PDB path (F-06), and whether the file carries a certificate table (F-04).
+3. Where the Win32 memory APIs are used versus the `Nt*` functions (F-86), and whether v1.3.40 imported `AttachThreadInput` (F-98).
+4. Meaning of the .NET-style PDB path (F-06).
 5. `SetSetting` id 0 (F-17).

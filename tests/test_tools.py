@@ -78,6 +78,21 @@ class ResourceCryptoTests(unittest.TestCase):
         self.assertFalse(xeno_detector.resource_decrypts(b"\x16\x48"))
 
 
+class CertificateTableTests(unittest.TestCase):
+    def test_unsigned_pe_has_empty_table(self):
+        class Entry:
+            VirtualAddress = 0
+            Size = 0
+
+        class Header:
+            DATA_DIRECTORY = [Entry()] * 16
+
+        class FakePE:
+            OPTIONAL_HEADER = Header()
+
+        self.assertEqual(xeno_detector.certificate_table(FakePE(), b"MZ" + b"\0" * 64), b"")
+
+
 class DetectorTextTests(unittest.TestCase):
     def scan_bytes(self, data):
         with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -97,8 +112,9 @@ class DetectorTextTests(unittest.TestCase):
         self.assertEqual(self.scan_bytes(b"hello world")[1], "no match")
 
     def test_repository_files_never_get_a_pe_verdict(self):
+        local_only = tuple(os.path.join(ROOT, d) + os.sep for d in ("sample", "app"))
         for path in xeno_detector.iter_paths(ROOT):
-            if path.endswith(".dll") or "__pycache__" in path:
+            if path.startswith(local_only) or "__pycache__" in path:
                 continue
             verdict = xeno_detector.scan_file(path)[1]
             self.assertIn(verdict, ("no match", "xeno strings (non-PE)"), path)

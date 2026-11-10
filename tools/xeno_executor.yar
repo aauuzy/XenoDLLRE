@@ -30,6 +30,21 @@ rule Xeno_Executor_DLL_HighConf
         uint16(0) == 0x5A4D and 2 of them
 }
 
+rule Xeno_Signer_Certificate
+{
+    meta:
+        description = "Authenticode signature from the self-signed 'Rizve A' certificate used on Xeno v1.3.65"
+        scope = "file"
+        sha256_fingerprint = "AEE2FA8DBD1108B7664553143E0ABDF7D41EC87A59CBDB0A2D4D0B84C2B30A21"
+        note = "certificate valid 2026-05-10 to 2027-05-10; a renewed certificate will have a new serial"
+    condition:
+        uint16(0) == 0x5A4D and
+        for any s in pe.signatures : (
+            s.subject contains "Rizve A" and
+            s.serial == "3f:da:0d:2c:31:c5:c2:a8:47:90:e6:e2:f2:0d:13:06"
+        )
+}
+
 rule Xeno_ResourceKey_Initializer
 {
     meta:
