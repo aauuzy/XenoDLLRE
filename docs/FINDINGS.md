@@ -73,7 +73,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | F-34 | The primary offsets endpoint URL. | Unverified | Not present as a plain string. Possibly built at runtime or fetched via the pastebin URL (F-55) |
 | F-35 | The injected client signals success through the localhost server; if no ping arrives, Xeno escalates through further attempts and then gives up. | Strongly supported | `S`: `"Attach ping received from client..."`, `"Still did not receive the success ping from client. Treating this as failed."` |
 | F-36 | In v1.3.65 the fallback includes a forced window refresh (`RefreshRBXWindowV2`). | Unverified | Two `RefreshRBXWindowV2` strings were removed in v1.3.65 (`C`); whether the routine survives in v1.3.65 has not been checked |
-| F-37 | After the player leaves a place, Xeno reattaches (`PlayerRemoving`, op 19). | Strongly supported | `S`: `"[::PlayerRemoving]: Player leaving ping recieved. We have to reattach."`; `P:4805-4811` |
+| F-37 | After the player leaves a place, Xeno reattaches (`PlayerRemoving`, op 19). | Strongly supported | `S`: `"[::PlayerRemoving]: Player leaving ping recieved. We have to reattach."`; `P:4803-4811` |
 
 ## 5. Execution
 
@@ -126,7 +126,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | ID | Finding | Confidence | Evidence |
 |---|---|---|---|
 | F-80 | A `Xeno` directory with `workspace` and `autoexec` folders and a cache file. | Strongly supported | `S`: directory log lines |
-| F-81 | Autoexec and teleport-queue replay are disabled in this client build (code commented out), though the DLL still logs both. | Confirmed (client) | `P:4773-4801` |
+| F-81 | Autoexec and teleport-queue replay are disabled in this client build (code commented out), though the DLL still logs both. | Confirmed (client) | `P:4774-4802` |
 | F-82 | The `Activate` call returns a hardware identifier (braces stripped; a random GUID is used if it fails); `GetCurrentHwProfileW` is imported. The client attaches it to outgoing script HTTP requests (F-54) and exposes it as `gethwid()`. What the DLL or the developer otherwise uses it for is not established. | Confirmed (HWID returned and sent) / Unverified (other use) | `P:420-435`, `P:2112-2113`, `P:2158-2159`; `I` |
 | F-83 | Reads Steam registry values. Purpose unknown. | Confirmed (strings) / Unverified (purpose) | `S`: `"Error opening Steam key"`, `"Error reading SteamExe key"` |
 | F-84 | Terminates other running Xeno instances on start. | Strongly supported | `S`: `"Terminated same existing Xeno process: {}"` |

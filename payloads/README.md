@@ -48,6 +48,6 @@ The documentation cites these line numbers as evidence. Each row describes the c
 | 2933 | `saveinstance` fetched from `luau/SynSaveInstance` on GitHub | Remote content |
 | 3503–3516 | `getthreadidentity` returns a stored number (default 3); `setthreadidentity` only updates that number | Environment completeness |
 | 4766 | Commented-out call to `XFS.CBlockFunctions`, an opcode absent from the table | Version drift |
-| 4773–4801 | Teleport-queue replay and autoexec blocks, both commented out; they reference `XFS.GetQueueOnTeleport` and `XFS.GetAutoExecuteContents`, which are not in the table | Disabled features |
+| 4774–4802 | Teleport-queue replay and autoexec blocks, both commented out; they reference `XFS.GetQueueOnTeleport` and `XFS.GetAutoExecuteContents`, which are not in the table | Disabled features |
 | 4813–4824 | Fetches `code.lua`; if longer than 3 bytes, runs it via `Xeno.loadstring(..., "XenoNotification")` with the Xeno environment | Remote code-push channel |
 | 4826–4872 | `ExecutionListener`: local `require()` loop on a random-named ModuleScript; sends only op 21, after a function is returned | Execution path A |
