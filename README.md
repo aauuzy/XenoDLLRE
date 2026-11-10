@@ -19,6 +19,7 @@ All of this is static analysis. Nothing was executed. Each claim in `docs/FINDIN
 | Protocol | `POST /f?e=<0-21>` plus `/ls`, `/rq`, `/qt`, `/cb` on localhost (F-51, F-52) | Confirmed (client) |
 | Resources | XOR key `3EFD5045…A92AF5BB` + zstd; unchanged from v1.3.40 (F-60, F-61) | Confirmed |
 | Remote code | `code.lua` fetched and executed on every attach (F-63) | Confirmed (client) |
+| Identifier leakage | Script HTTP requests send the user's HWID (`exploit-guid`, `xeno-fingerprint`) and current game server to any host (F-54) | Confirmed (client) |
 | Artifacts | `CoreGui/<pid>` folder with `Message` "DO NOT DELETE: BELONGS TO XENO", `shared.__Xeno` (F-70, F-71) | Confirmed |
 | Platform vulnerability | None established (`docs/DISCLOSURE.md`) | — |
 

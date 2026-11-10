@@ -36,12 +36,12 @@ The documentation cites these line numbers as evidence. Each row describes the c
 | 193–227 | `XFS` opcode table, 0–21, plus client-only `WriteFile = -1` | Protocol |
 | 309 | `RawHttpGet` | Remote channels |
 | 396 | `if xRenv.script.Name == "en-us" then` | Attach target |
-| 420 | `RServer({XFS.Activate, ''}, true)`; comment says it returns the HWID | HWID |
+| 420–435 | `RServer({XFS.Activate, ''}, true)`; comment says it returns the HWID; random GUID fallback | HWID |
 | 441–549 | `BlockedServiceFuncs`: services and methods Xeno denies to user scripts | Security significance |
 | 575–577 | `GetDeviceAccessToken`, `GetDeviceIntegrityToken(Yield)` replaced with `Blocked` | Security significance |
 | 1643 | Environment wrapper variant used for module identity checks | Execution wrapper |
 | 1994–2080 | `Xeno.loadstring`: module named `loadstring:<random>[chunkName]`, source posted to `/ls?c=<name>&p=<pid>`, then op 20 / `require` / op 21 polling (2038–2040) with a 3 s timeout | Execution path B |
-| 2162 | `roblox-session-id` header added to proxied requests (with place and game IDs nearby) | Protocol |
+| 2157–2165 | Proxied request headers: `user-agent: Xeno/<version>`, `exploit-guid` and `xeno-fingerprint` (HWID), `roblox-place-id`, `roblox-game-id`, `roblox-session-id` | Protocol, identifier leakage |
 | 2168–2169 | Requests to port 3110 refused | Protocol |
 | 2174 | `/rq?c=` HTTP proxy | Protocol |
 | 2839–2847 | `queue_on_teleport` posts to `/qt?p=` | Teleport queue |

@@ -71,7 +71,7 @@ These require code or checks running in the client, which is the domain of Roblo
 
 ## Layer 4 — Network
 
-Loopback traffic is described above. Outbound, the client requests `version.txt` and `code.lua` from `x3no.pages.dev` on attach, and the DLL requests `ep.zst.enc` on startup if the primary offsets source fails. Proxied script requests carry `roblox-place-id`, `roblox-game-id` and `roblox-session-id` headers on traffic that is not going to Roblox.
+Loopback traffic is described above. Outbound, the client requests `version.txt` and `code.lua` from `x3no.pages.dev` on attach, and the DLL requests `ep.zst.enc` on startup if the primary offsets source fails. Proxied script requests carry `User-Agent: Xeno/<version>` by default, `exploit-guid` and `xeno-fingerprint` (the user's hardware identifier), and `roblox-place-id`, `roblox-game-id`, `roblox-session-id`, on traffic that is not going to Roblox. Any web service that Xeno scripts call can see these headers, which makes them the simplest server-side signal available outside Roblox (for example to operators of script-hosting or webhook endpoints).
 
 ## Running the tests
 

@@ -18,6 +18,8 @@ Roblox treats the game client as untrusted. Xeno runs only because a user instal
 
 **Remote code channel (F-63).** Every attached client fetches and runs `code.lua` from the developer's host with the full Xeno environment. This is a risk to Xeno's users (whoever controls that host controls every attached session), not a Roblox vulnerability.
 
+**Identifier leakage (F-54, F-92).** Script HTTP requests send the user's hardware identifier and current game server to any host a script contacts. This is a privacy risk to Xeno's users created by Xeno, not a Roblox issue.
+
 **Service deny-list (F-90).** Xeno blocks its own scripts from purchase, authentication-cookie, analytics and messaging APIs and calls this "vulnerabilities mitigation". This suggests those APIs are reachable from the context Xeno's scripts run in, which would mean malicious scripts shared among Xeno users (or the `code.lua` channel) could act on the user's account. Reachability has not been tested. Even if confirmed, the precondition is still the user running Xeno, so it is user-safety information rather than a platform vulnerability.
 
 ## HackerOne position

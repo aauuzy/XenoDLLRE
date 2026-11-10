@@ -195,7 +195,7 @@ Returning a table keyed by PID means a module compiled for one client cannot be 
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /rq?c=<method>&h=<b64 headers>&u=<b64 url>` | HTTP proxy for script `request()`, executed by libcurl in the DLL |
+| `POST /rq?c=<method>&h=<b64 headers>&u=<b64 url>` | HTTP proxy for script `request()`, executed by libcurl in the DLL; the client adds Xeno user-agent, HWID (`exploit-guid`, `xeno-fingerprint`) and game-server headers (F-54) |
 | `POST /qt?p=<pid>` | Store a `queue_on_teleport` script |
 | `POST /cb` | Set the OS clipboard |
 

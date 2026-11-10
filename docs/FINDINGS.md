@@ -97,7 +97,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 | F-51 | Opcode endpoint `POST /f?e=<op>` with JSON body `{"c": <arg>, "p": <pid>}`; ops 0–21 as listed in `ARCHITECTURE.md` §5; a missing status is treated as 410 ("Xeno was closed"). | Confirmed (client side) | `P:137-175`, `P:193-227` |
 | F-52 | Additional endpoints: `/ls` (compile), `/rq?c=<method>&h=<b64 headers>&u=<b64 url>` (HTTP proxy for user scripts), `/qt?p=<pid>` (teleport queue), `/cb` (clipboard). | Confirmed (client side) | `P:2007`, `P:2174`, `P:2839-2847`, `/cb` call site |
 | F-53 | The client refuses user requests to port 3110 on loopback. The reason (a fixed or development port) is not established. | Confirmed (behavior) / Inferred (reason) | `P:2168-2169` |
-| F-54 | Proxied requests carry `roblox-place-id`, `roblox-game-id`, `roblox-session-id` headers. | Confirmed | `P:2162` |
+| F-54 | Every request made through the script HTTP API carries `User-Agent: Xeno/<version>` (unless the script overrides it), `exploit-guid` and `xeno-fingerprint` headers set to the user's hardware identifier, and `roblox-place-id`, `roblox-game-id` (the server JobId) and `roblox-session-id` headers. Any third-party server a Xeno script contacts therefore receives a stable machine identifier and the user's current game server. | Confirmed | `P:2157-2165`; identifier source `P:420-435` |
 | F-55 | The UI process communicates with the DLL over named pipes. | Inferred | Only `WaitNamedPipeW`/`PeekNamedPipe` imports |
 
 ## 7. Resources and remote content
@@ -127,7 +127,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 |---|---|---|---|
 | F-80 | A `Xeno` directory with `workspace` and `autoexec` folders and a cache file. | Strongly supported | `S`: directory log lines |
 | F-81 | Autoexec and teleport-queue replay are disabled in this client build (code commented out), though the DLL still logs both. | Confirmed (client) | `P:4773-4801` |
-| F-82 | The `Activate` call returns a hardware identifier; `GetCurrentHwProfileW` is imported. What the HWID is used for (licensing, telemetry, bans) is not established. | Confirmed (HWID returned) / Unverified (use) | `P:420`; `I` |
+| F-82 | The `Activate` call returns a hardware identifier (braces stripped; a random GUID is used if it fails); `GetCurrentHwProfileW` is imported. The client attaches it to outgoing script HTTP requests (F-54) and exposes it as `gethwid()`. What the DLL or the developer otherwise uses it for is not established. | Confirmed (HWID returned and sent) / Unverified (other use) | `P:420-435`, `P:2112-2113`, `P:2158-2159`; `I` |
 | F-83 | Reads Steam registry values. Purpose unknown. | Confirmed (strings) / Unverified (purpose) | `S`: `"Error opening Steam key"`, `"Error reading SteamExe key"` |
 | F-84 | Terminates other running Xeno instances on start. | Strongly supported | `S`: `"Terminated same existing Xeno process: {}"` |
 | F-85 | Imports for clipboard writes and synthesized input (`SetClipboardData`, `keybd_event`, `mouse_event`), used to back the script API (`setclipboard`, `keypress`, `mouse*`). | Strongly supported | `I`; corresponding client functions |
@@ -139,6 +139,7 @@ All analysis is static. Nothing here has been observed running. "Confirmed" ther
 |---|---|---|---|
 | F-90 | Xeno ships a deny-list (`BlockedServiceFuncs`) covering purchase, authentication-cookie, analytics, web-browser, capture and messaging APIs (for example `MarketplaceService:PerformPurchase`, `BrowserService:CopyAuthCookieFromBrowserToEngine`, `HttpRbxApiService:*`) and stubs `GetDeviceAccessToken` / `GetDeviceIntegrityToken`. The credits call this "vulnerabilities mitigation". This implies the developers believe these APIs are reachable from the context their scripts run in. | Confirmed (list exists) / Unverified (reachability) | `P:10`, `P:441-549`, `P:575-577` |
 | F-91 | Consequently, the risks of this design fall mainly on Xeno's own users: scripts they run, and the `code.lua` channel (F-63), execute in a context the developer felt needed these protections. | Inferred | F-63, F-90 |
+| F-92 | Script HTTP requests disclose a stable hardware identifier and the current game server to whatever host a script contacts (F-54). Script authors can use this to track Xeno users across sessions and accounts. | Confirmed (headers) | F-54 |
 
 See `DISCLOSURE.md` for how these map to Roblox's security boundaries.
 
