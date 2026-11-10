@@ -6,12 +6,12 @@ The analysis is factored into analyze() so tools/compare_samples.py can reuse it
 Usage:  python tools/sample_report.py [dll-path] [-o report-path]
 """
 
+import argparse
 import datetime
 import hashlib
 import io
 import os
 import re
-import subprocess
 import sys
 
 import pefile
@@ -46,6 +46,12 @@ def entropy(data):
     c = Counter(data)
     n = len(data)
     return -sum(v / n * math.log2(v / n) for v in c.values())
+
+
+def display_path(path):
+    """Workspace-relative path for files in the repo, bare file name otherwise."""
+    rel = os.path.relpath(os.path.abspath(path), WORKSPACE)
+    return os.path.basename(path) if rel.startswith("..") else rel
 
 
 def get_resources(pe):
@@ -139,7 +145,7 @@ def analyze(path):
             if e.name:
                 data["exports"][e.name.decode()] = hex(e.address)
 
-    for entry in pe.DIRECTORY_ENTRY_IMPORT:
+    for entry in getattr(pe, "DIRECTORY_ENTRY_IMPORT", []):
         data["imports"][entry.dll.decode()] = sorted(
             i.name.decode() for i in entry.imports if i.name)
 
@@ -196,15 +202,15 @@ def render(d):
     add(f"> Generated: {datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC")
     add("")
 
-    forged = " **(future/forged)**" if d["timestamp_future"] else ""
+    forged = " **(later than report time)**" if d["timestamp_future"] else ""
     add("## File identity")
     add("")
     add("| Attribute | Value |")
     add("|---|---|")
-    add(f"| Path | `{os.path.relpath(d['path'], WORKSPACE)}` |")
+    add(f"| Path | `{display_path(d['path'])}` |")
     add(f"| Size | {d['size']:,} bytes |")
     add(f"| SHA-256 | `{d['sha256']}` |")
-    add(f"| Machine | {d['machine']} (x86-64) |")
+    add(f"| Machine | {d['machine']}{' (x86-64)' if d['machine'] == '0x8664' else ''} |")
     add(f"| PE timestamp | {d['timestamp_str']} UTC{forged} |")
     add(f"| Subsystem | {d['subsystem']} |")
     add(f"| ImageBase | {d['imagebase']} |")
@@ -264,7 +270,7 @@ def render(d):
             add(f"XOR key: **ROTATED - auto-recovered:** `{d['xor_key']}`")
         else:
             add("XOR key: **changed and not auto-recoverable** (manual recovery per "
-                "`docs/REVERSE_ENGINEERING_PROCESS.md` §10).")
+                "`docs/METHODOLOGY.md`, Phase 2).")
         add("")
         if d["payloads"]:
             add("| Resource | Decrypted size | Payload head |")
@@ -286,7 +292,7 @@ def render(d):
     add("## Detector verdict")
     add("")
     add("```")
-    add(f"{d['path']}")
+    add(display_path(d['path']))
     add(f"  score={d['detector']['score']}  verdict={d['detector']['verdict']}")
     for h in d["detector"]["hits"]:
         add(f"    + {h}")
@@ -296,11 +302,11 @@ def render(d):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("-")]
-    dll = args[0] if args else SAMPLE
-    out = REPORT
-    if "-o" in sys.argv:
-        out = sys.argv[sys.argv.index("-o") + 1]
+    ap = argparse.ArgumentParser(description="Write SAMPLE_REPORT.md for a Xeno DLL.")
+    ap.add_argument("dll", nargs="?", default=SAMPLE)
+    ap.add_argument("-o", "--output", default=REPORT)
+    a = ap.parse_args()
+    dll, out = a.dll, a.output
     if not os.path.exists(dll):
         sys.exit(f"ERROR: not found: {dll}")
     d = analyze(dll)

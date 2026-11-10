@@ -5,11 +5,13 @@ Diffs two Xeno-family DLLs and writes a markdown change report.
 Usage:  python tools/compare_samples.py <old.dll> <new.dll> [-o COMPARE_REPORT.md]
 
 Typical use after `update_sample.py` (which leaves timestamped .bak files):
-    python tools/compare_samples.py sample/TEST.dll.20251109_180000.bak sample/TEST.dll
+    python tools/compare_samples.py sample/TEST.dll.<timestamp>.bak sample/TEST.dll
 """
 
+import argparse
 import datetime
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -18,8 +20,6 @@ from sample_report import analyze  # noqa: E402
 WORKSPACE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # strings matching these are "interesting" for the string-level diff
-INTERESTING = None
-import re
 INTERESTING = re.compile(
     r"xeno|attach|offset|module|loadstring|bytecode|http|localhost|pipe|"
     r"hook|script|client|server|teleport|autoexec|cache|hwid|key|version", re.I)
@@ -28,6 +28,16 @@ INTERESTING = re.compile(
 def diff_sets(old, new):
     old_s, new_s = set(old), set(new)
     return sorted(new_s - old_s), sorted(old_s - new_s)
+
+
+def diff_imports(old, new):
+    """Function-level import diff across every DLL, including DLLs added or removed."""
+    added, removed = [], []
+    for dll in sorted(set(old) | set(new)):
+        a, r = diff_sets(old.get(dll, []), new.get(dll, []))
+        added += [f"{dll}!{x}" for x in a]
+        removed += [f"{dll}!{x}" for x in r]
+    return added, removed
 
 
 def section(title, added, removed, limit=60):
@@ -53,16 +63,17 @@ def section(title, added, removed, limit=60):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("-")]
-    if len(args) < 2:
-        sys.exit("usage: python tools/compare_samples.py <old.dll> <new.dll> [-o out.md]")
-    out = (sys.argv[sys.argv.index("-o") + 1] if "-o" in sys.argv
-           else os.path.join(WORKSPACE, "COMPARE_REPORT.md"))
+    ap = argparse.ArgumentParser(description="Diff two Xeno-family DLLs into a markdown report.")
+    ap.add_argument("old")
+    ap.add_argument("new")
+    ap.add_argument("-o", "--output", default=os.path.join(WORKSPACE, "COMPARE_REPORT.md"))
+    a = ap.parse_args()
+    out = a.output
 
-    print(f"analyzing OLD: {args[0]}")
-    old = analyze(args[0])
-    print(f"analyzing NEW: {args[1]}")
-    new = analyze(args[1])
+    print(f"analyzing OLD: {a.old}")
+    old = analyze(a.old)
+    print(f"analyzing NEW: {a.new}")
+    new = analyze(a.new)
 
     L = []
     add = L.append
@@ -96,11 +107,7 @@ def main():
         # imports: dll-level then function-level
         dll_add, dll_rm = diff_sets(old["imports"], new["imports"])
         L += section("Import DLLs", dll_add, dll_rm)
-        fn_changes = []
-        for dll in sorted(set(old["imports"]) & set(new["imports"])):
-            a, r = diff_sets(old["imports"][dll], new["imports"][dll])
-            fn_changes += [f"{dll}!{x}" for x in a], [f"{dll}!{x}" for x in r]
-        L += section("Imported functions", fn_changes[0], fn_changes[1])
+        L += section("Imported functions", *diff_imports(old["imports"], new["imports"]))
 
         L += section("URLs", *diff_sets(old["urls"], new["urls"]))
         L += section("Environment variables", *diff_sets(old["env_vars"], new["env_vars"]))
