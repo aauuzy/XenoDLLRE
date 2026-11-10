@@ -2,7 +2,7 @@ import "pe"
 
 /*
  * Xeno executor detection pack.
- * Built from static analysis of Xeno v1.3.40 and v1.3.65. See docs/DETECTION.md for
+ * Built from static analysis of Xeno v1.3.40 and v1.3.65. See docs/defense/DETECTION.md for
  * per-rule scope, validation status, and known false-positive sources.
  *
  * File rules require a PE header. Memory/artifact rules do not, and will therefore also match
@@ -14,7 +14,7 @@ rule Xeno_Executor_DLL_HighConf
     meta:
         description = "Xeno core DLL - product-unique strings"
         scope = "file"
-        reference = "docs/FINDINGS.md"
+        reference = "docs/research/FINDINGS.md"
     strings:
         $s1 = "Xeno is only maintained by Rizve" ascii
         $s2 = "rizve@xeno.onl" ascii

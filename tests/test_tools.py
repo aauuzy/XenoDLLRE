@@ -15,6 +15,7 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
+sys.path.insert(0, os.path.join(ROOT, "detection"))
 
 import zstandard  # noqa: E402
 
@@ -167,7 +168,7 @@ class DetectorPETests(unittest.TestCase):
 
     @unittest.skipIf(yara is None, "yara-python not installed")
     def test_yara_rules(self):
-        rules = yara.compile(os.path.join(ROOT, "tools", "xeno_executor.yar"))
+        rules = yara.compile(os.path.join(ROOT, "detection", "xeno_executor.yar"))
         fired = lambda p: sorted(m.rule for m in rules.match(p))  # noqa: E731
         self.assertEqual(fired(self.structural), ["Executor_API_Generic", "Xeno_EncryptedResource"])
         self.assertEqual(fired(self.wrong_key), ["Executor_API_Generic"])

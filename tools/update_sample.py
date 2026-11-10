@@ -23,7 +23,7 @@ import time
 
 WORKSPACE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE    = os.path.join(WORKSPACE, "sample", "TEST.dll")
-DETECTOR  = os.path.join(WORKSPACE, "tools", "xeno_detector.py")
+DETECTOR  = os.path.join(WORKSPACE, "detection", "xeno_detector.py")
 REPORTER  = os.path.join(WORKSPACE, "tools", "sample_report.py")
 
 SEVEN_ZIP_CANDIDATES = [
@@ -130,7 +130,7 @@ def main():
     subprocess.run([sys.executable, DETECTOR, SAMPLE, "-v"])
 
     # ── Regenerate the auto report ──────────────────────────────
-    print("\nRegenerating SAMPLE_REPORT.md ...")
+    print("\nRegenerating reports/SAMPLE_REPORT.md ...")
     subprocess.run([sys.executable, REPORTER])
 
     print("\n[OK] Sample updated.")

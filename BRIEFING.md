@@ -7,7 +7,7 @@
 
 ## What Xeno is
 
-A free Windows Roblox script executor in wide use. Its scale cannot be established from public data (`docs/THREAT_ASSESSMENT.md` §2). The current public installer contains exactly the DLL analyzed here (`Xeno.dll` v1.3.65, SHA-256 `50318bc8…99049`).
+A free Windows Roblox script executor in wide use. Its scale cannot be established from public data ([`docs/defense/THREAT_ASSESSMENT.md`](docs/defense/THREAT_ASSESSMENT.md) §2). The current public installer contains exactly the DLL analyzed here (`Xeno.dll` v1.3.65, SHA-256 `50318bc8…99049`).
 
 ## How it works
 
@@ -31,19 +31,19 @@ Xeno never loads a DLL or creates a thread in Roblox. It overwrites the bytecode
 | 2 | Reject out-of-band bytecode in `require()` (C-3) | Removes its execution method |
 | 3 | Audit privileged APIs reachable from CoreScript context (C-5) | Protects executor users |
 
-Details, risks and quick detection indicators: `docs/COUNTERMEASURES.md`.
+Details, risks and quick detection indicators: [`docs/defense/COUNTERMEASURES.md`](docs/defense/COUNTERMEASURES.md).
 
 ## Evidence
 
-Static analysis only; nothing was executed and no Roblox or Xeno infrastructure was contacted. Every claim in `docs/FINDINGS.md` carries an evidence reference and a confidence level. Disassembly, imports and signature were re-verified against the sample on 2026-11-10. Samples and the decrypted client are not redistributed; hashes are in `SAMPLE_REPORT.md` and `payloads/README.md`. Samples can be shared privately on request.
+Static analysis only; nothing was executed and no Roblox or Xeno infrastructure was contacted. Every claim in [`docs/research/FINDINGS.md`](docs/research/FINDINGS.md) carries an evidence reference and a confidence level. Disassembly, imports and signature were re-verified against the sample on 2026-11-10. Samples and the decrypted client are not redistributed; hashes are in [`SAMPLE_REPORT.md`](reports/SAMPLE_REPORT.md) and [`payloads/README.md`](payloads/README.md). Samples can be shared privately on request.
 
 ## Documents
 
 | Document | Contents |
 |---|---|
-| `docs/THREAT_ASSESSMENT.md` | Prevalence, who is harmed, client observations G-1 to G-5, Xeno's dependencies |
-| `docs/COUNTERMEASURES.md` | Ranked proposals and detection indicators |
-| `docs/ARCHITECTURE.md` | Full technical design with disassembly |
-| `docs/FINDINGS.md` | Every claim with evidence and confidence |
-| `docs/DETECTION.md` | File, host, in-client and network indicators; YARA and scanner |
-| `docs/LIMITATIONS.md` | What is not established |
+| [`docs/defense/THREAT_ASSESSMENT.md`](docs/defense/THREAT_ASSESSMENT.md) | Prevalence, who is harmed, client observations G-1 to G-5, Xeno's dependencies |
+| [`docs/defense/COUNTERMEASURES.md`](docs/defense/COUNTERMEASURES.md) | Ranked proposals and detection indicators |
+| [`docs/research/ARCHITECTURE.md`](docs/research/ARCHITECTURE.md) | Full technical design with disassembly |
+| [`docs/research/FINDINGS.md`](docs/research/FINDINGS.md) | Every claim with evidence and confidence |
+| [`docs/defense/DETECTION.md`](docs/defense/DETECTION.md) | File, host, in-client and network indicators; YARA and scanner |
+| [`docs/research/LIMITATIONS.md`](docs/research/LIMITATIONS.md) | What is not established |

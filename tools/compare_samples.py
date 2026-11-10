@@ -66,7 +66,7 @@ def main():
     ap = argparse.ArgumentParser(description="Diff two Xeno-family DLLs into a markdown report.")
     ap.add_argument("old")
     ap.add_argument("new")
-    ap.add_argument("-o", "--output", default=os.path.join(WORKSPACE, "COMPARE_REPORT.md"))
+    ap.add_argument("-o", "--output", default=os.path.join(WORKSPACE, "reports", "COMPARE_REPORT.md"))
     a = ap.parse_args()
     out = a.output
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """sample_report.py
-Analyzes a Xeno DLL (default: sample/TEST.dll) and (re)writes SAMPLE_REPORT.md.
+Analyzes a Xeno DLL (default: sample/TEST.dll) and (re)writes reports/SAMPLE_REPORT.md.
 The analysis is factored into analyze() so tools/compare_samples.py can reuse it.
 
 Usage:  python tools/sample_report.py [dll-path] [-o report-path]
@@ -16,12 +16,12 @@ import sys
 
 import pefile
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+WORKSPACE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(WORKSPACE, "detection"))
 from xeno_detector import scan_file  # noqa: E402
 
-WORKSPACE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE    = os.path.join(WORKSPACE, "sample", "TEST.dll")
-REPORT    = os.path.join(WORKSPACE, "SAMPLE_REPORT.md")
+REPORT    = os.path.join(WORKSPACE, "reports", "SAMPLE_REPORT.md")
 
 KNOWN_KEY = bytes.fromhex(
     "3EFD5045ED61BFCA57EFA192D0076696"
@@ -275,7 +275,7 @@ def render(d):
             add(f"XOR key: **ROTATED - auto-recovered:** `{d['xor_key']}`")
         else:
             add("XOR key: **changed and not auto-recoverable** (manual recovery per "
-                "`docs/METHODOLOGY.md`, Phase 2).")
+                "`docs/research/METHODOLOGY.md`, Phase 2).")
         add("")
         if d["payloads"]:
             add("| Resource | Decrypted size | Payload head |")

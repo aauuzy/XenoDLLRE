@@ -1,6 +1,6 @@
 # Recovered payloads
 
-Xeno v1.3.65 embeds two encrypted resources (type `8194`, IDs `8192` and `8196`). Both decrypt with the repeating 32-byte XOR key and decompress with zstd (see `docs/ARCHITECTURE.md` §6). The decrypted files are **not redistributed** in this repository:
+Xeno v1.3.65 embeds two encrypted resources (type `8194`, IDs `8192` and `8196`). Both decrypt with the repeating 32-byte XOR key and decompress with zstd (see [`docs/research/ARCHITECTURE.md`](../docs/research/ARCHITECTURE.md) §6). The decrypted files are **not redistributed** in this repository:
 
 - `8192` is Xeno's working in-game client. Publishing it in full would amount to distributing an executor component, which Roblox's HackerOne policy prohibits and which adds nothing a reviewer cannot reproduce from a legitimately obtained sample.
 - `8196` is Roblox's own en-us locale table. It is third-party content with no research value beyond its hash.
