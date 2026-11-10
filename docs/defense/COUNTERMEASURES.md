@@ -51,7 +51,7 @@ These rely on identifiers Xeno can change quickly. Their best use is counting ho
 | C-8 | ModuleScripts created and destroyed at high rate under one CoreGui folder, each `require()`d repeatedly | Client integrity | F-72 |
 | C-9 | Loopback `RequestInternal` calls to `/f?e=`, `/ls?c=loadstring:`, `/qt?p=`, `/cb` | Client integrity | F-51, F-52 |
 | C-10 | A process loading a module signed by the self-signed `CN=Rizve A` certificate (serial `3FDA0D2C31C5C2A84790E6E2F20D1306`) while holding a write handle to `RobloxPlayerBeta.exe` | Host (anti-cheat) | F-04 |
-| C-11 | A process with a loopback HTTP listener that also holds memory-write access to the Roblox process | Host (anti-cheat) | F-50, F-86 |
+| C-11 | A process with a loopback HTTP listener that also holds a `PROCESS_ALL_ACCESS` handle to the Roblox process and has allocated memory in it with `VirtualAllocEx` | Host (anti-cheat) | F-31, F-32, F-50, F-86 |
 | C-12 | Outbound requests carrying `exploit-guid` or `xeno-fingerprint` headers, or `User-Agent: Xeno/` | Any web service scripts contact | F-54 |
 
 C-6 and C-8 are the hardest for Xeno to remove without changing how it works. C-7, C-10 and C-12 take minutes to change but are very specific while they last. File-level signatures for the DLL are in [`DETECTION.md`](DETECTION.md) and the [`detection/`](../../detection) folder.

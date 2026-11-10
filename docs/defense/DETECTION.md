@@ -2,14 +2,17 @@
 
 Indicators and detection approaches for Xeno, derived from [`FINDINGS.md`](../research/FINDINGS.md). Each section states which layer a defender needs access to, how specific the indicator is, and how it can fail.
 
-**Validation status.** The tools have been checked against two Xeno builds (v1.3.40 by the author; v1.3.65 by the author and again on 2026-11-10 with the current tools), against synthetic DLLs that reproduce Xeno's export set and resource layout (`tests/`), and against the text files in this repository. They have **not** been run against a large benign corpus or against other executors. No accuracy figures are claimed.
+**Validation status.** The tools have been checked against two real Xeno builds (v1.3.40 and v1.3.65, both re-run on 2026-11-10 with the current tools and pinned by [`tests/test_samples.py`](../../tests/test_samples.py), which runs whenever the samples are present), against synthetic DLLs that reproduce Xeno's export set and resource layout (`tests/`), and against the text files in this repository. They have **not** been run against a large benign corpus or against other executors. No accuracy figures are claimed.
 
 ## Tools
 
 | Tool | Input | Output |
 |---|---|---|
 | [`detection/xeno_detector.py`](../../detection/xeno_detector.py) | File or directory | Score and verdict per file |
-| [`detection/xeno_executor.yar`](../../detection/xeno_executor.yar) | File, process memory, or capture | Matching rules |
+| [`detection/xeno_executor.yar`](../../detection/xeno_executor.yar) | File, process memory, or capture | Matching rules; compiles on any YARA build |
+| [`detection/xeno_signer.yar`](../../detection/xeno_signer.yar) | File | Signer certificate rule; needs YARA built with OpenSSL |
+
+The signer rule is kept in its own file because `pe.signatures` exists only when YARA is built with OpenSSL, and the Windows `yara-python` wheels are not. When it shared a file with the other rules, such a build rejected the whole file and no rule loaded. Compile the two files separately, or catch the signer file's `SyntaxError` and continue without it.
 
 ### Detector scoring
 
@@ -17,11 +20,14 @@ PE files are scored on product-unique strings and three structural checks: a cer
 
 Non-PE files (memory dumps, scripts, reports) get `xeno strings (non-PE)` if any string indicator is present. They never receive a DLL verdict; a document that quotes Xeno strings, including this one, would otherwise score as Xeno.
 
-Expected behavior, covered by tests:
+The `env_vars` indicator name is historical: `%XENO_CLIENT_PID%`, `%XENO_SERVER_PORT%` and `%ROBLOX_CLIENT_VERSION%` are placeholders the DLL substitutes into the client source before compiling it, not environment variables (see Layer 2).
+
+Expected behavior, covered by tests (real-sample rows by [`tests/test_samples.py`](../../tests/test_samples.py), the rest by [`tests/test_tools.py`](../../tests/test_tools.py)):
 
 | Input | Verdict |
 |---|---|
-| Xeno v1.3.65 DLL | `xeno (heuristic)`, score 370; YARA file rules HighConf, Signer_Certificate, ResourceKey_Initializer, EncryptedResource and API_Generic fire |
+| Xeno v1.3.65 DLL | `xeno (heuristic)`, score 370; YARA HighConf, ResourceKey_Initializer, EncryptedResource and API_Generic fire, plus Signer_Certificate where YARA has OpenSSL |
+| Xeno v1.3.40 DLL | `xeno (heuristic)`, score 325; YARA HighConf, ResourceKey_Initializer, EncryptedResource and API_Generic fire, plus Signer_Certificate where YARA has OpenSSL. The detector's `xor_key_init` does not fire because v1.3.40 builds the same key on the stack rather than through a heap pointer (the YARA rule covers both forms, the detector's literal pattern only the v1.3.65 one); `zstd_errors` does not fire because v1.3.40's zstd build lacks the `ERROR_*` name strings |
 | DLL with the six exports and a resource encrypted with the known key | `xeno (heuristic)` |
 | Same, but the resource key differs (simulates a key rotation) | `executor-family (suspicious)` |
 | DLL with only the six exports | `no match` |
@@ -33,10 +39,10 @@ Expected behavior, covered by tests:
 | Rule | Scope | What it matches | False-positive considerations |
 |---|---|---|---|
 | `Xeno_Executor_DLL_HighConf` | File | MZ header and 2 of 10 product strings / PDB path | Requires a PE; low risk |
-| `Xeno_Signer_Certificate` | File | Authenticode signature by the self-signed `Rizve A` certificate (subject and serial) | Very specific; stops matching when the certificate is renewed or replaced (expires 2027-05-10). Requires YARA built with OpenSSL |
-| `Xeno_ResourceKey_Initializer` | File | Key immediates as emitted by the initializer | Specific to this compiler output; breaks on key rotation or code-generation changes |
+| `Xeno_Signer_Certificate` ([`xeno_signer.yar`](../../detection/xeno_signer.yar)) | File | Authenticode signature by a self-signed `CN=Rizve A` certificate (subject and issuer). Known serials for v1.3.40 and v1.3.65 are in the rule's metadata | Survives the yearly certificate renewals seen so far (the subject stayed the same, the serial changed). Matches any other file self-signed with that name. Requires YARA built with OpenSSL |
+| `Xeno_ResourceKey_Initializer` | File | Key immediates as stored by the initializer: through a heap pointer (v1.3.65) or on the stack (v1.3.40) | Breaks on key rotation or a new code-generation pattern |
 | `Xeno_ResourceKey_Memory` | Memory | The 32-byte key as contiguous bytes | Any file or report containing the raw key bytes |
-| `Xeno_EncryptedResource` | File | Type-8194 resource beginning `16 48 7F B8` | Independent of payload size and version while the key is unchanged; tested on synthetic DLLs and v1.3.65 |
+| `Xeno_EncryptedResource` | File | Type-8194 resource beginning `16 48 7F B8` | Independent of payload size and version while the key is unchanged; tested on synthetic DLLs, v1.3.40 and v1.3.65 |
 | `Xeno_ClientLua_Payload` | Memory, file | 3 of 8 distinctive `CLIENT.LUA` strings | Matches documents that quote them |
 | `Xeno_Server_Protocol` | Memory, capture | 4 of 7 protocol strings | Matches documents that quote them, including this repository |
 | `Executor_API_Generic` | File | All six export names | Names are generic; triage only |
@@ -51,11 +57,15 @@ Product strings, the PDB path, the signing certificate, the key initializer, and
 
 | Observable | Specificity | Notes |
 |---|---|---|
-| A non-Roblox process opens `RobloxPlayerBeta.exe` with memory-write access and writes to it | Medium | Shared by all external executors and some overlays; telemetry needs handle or `WriteProcessMemory`-class events |
-| Process sets `XENO_CLIENT_PID`, `XENO_SERVER_PORT`, `XENO_VERSION` | High | Inferred from the `%…%` placeholders; how they are set is not traced |
+| A non-Roblox process opens `RobloxPlayerBeta.exe` with `PROCESS_ALL_ACCESS` (`0x1FFFFF`) and an inheritable handle, then calls `VirtualAllocEx` and `WriteProcessMemory` on it, with no `CreateRemoteThread`, `NtSuspendProcess` or `VirtualProtectEx` (F-31, F-32) | Medium | Remote allocation plus writes without a remote thread is less common than the full injection pattern, but other external executors and some overlays share it. Telemetry needs handle-open events with access masks (Sysmon event 10) or allocation/write events (ETW threat-intelligence provider). v1.3.40 additionally suspended and resumed the process around the attach |
+| Same process opens other processes with `PROCESS_TERMINATE` and kills earlier copies of itself on start (F-84) | Low | Common single-instance behavior; useful only in combination |
 | `Xeno` directory with `workspace`, `autoexec` and a cache file | High | Location not established |
+| `HKCU\Software\Classes\discord-1393297926209405000` URL-protocol key (F-87) | High if present | Discord RPC registration code is present and reachable; whether Xeno triggers it is not established |
 | Loopback HTTP listener in the same process, receiving `POST /f?e=<int>`, `/ls?c=`, `/rq?c=` | High | Requires loopback capture or a host-based proxy |
-| Outbound HTTPS to `x3no.pages.dev`, `xeno.now`, `xeno.onl`, `pastebin.com/raw/A7n0vJtR` | High (domains) | Domains can change without a DLL update |
+| Outbound HTTPS to `x3no.pages.dev`, `xeno.now`, `xeno.onl`; `pastebin.com/raw/A7n0vJtR` at each attach (primary offsets source, F-34) | High (domains) | Domains can change without a DLL update. The pastebin fetch happens before the Roblox process is written, so it marks an attach attempt |
+| Named-pipe client connection to `\\.\pipe\discord-ipc-0` from the same process (F-55) | Low | Any Discord Rich Presence integration does this |
+
+`%XENO_SERVER_PORT%`, `%XENO_VERSION%`, `%XENO_CLIENT_PID%` and `%ROBLOX_CLIENT_VERSION%` are not environment variables. They appear as Lua string literals in `CLIENT.LUA` (for example `local XENO_PID = "%XENO_CLIENT_PID%"`), so they can only take effect through text substitution before compiling. `Initialize` references the first two next to the resource loader (once per run), and the two attach routines reference the last two (per client). There is nothing to observe in the process environment.
 
 ## Layer 3 — Inside the Roblox client
 
@@ -72,19 +82,19 @@ These require code or checks running in the client, which is the domain of Roblo
 
 ## Layer 4 — Network
 
-Loopback traffic is described above. Outbound, the client requests `version.txt` and `code.lua` from `x3no.pages.dev` on attach, and the DLL requests `ep.zst.enc` on startup if the primary offsets source fails. Proxied script requests carry `User-Agent: Xeno/<version>` by default, `exploit-guid` and `xeno-fingerprint` (the user's hardware identifier), and `roblox-place-id`, `roblox-game-id`, `roblox-session-id`, on traffic that is not going to Roblox. Any web service that Xeno scripts call can see these headers, which makes them the simplest server-side signal available outside Roblox (for example to operators of script-hosting or webhook endpoints).
+Loopback traffic is described above. Outbound, the client requests `version.txt` and `code.lua` from `x3no.pages.dev` on attach, and the DLL requests `pastebin.com/raw/A7n0vJtR` at the start of each attach, then `ep.zst.enc` only if that fails. Proxied script requests carry `User-Agent: Xeno/<version>` by default, `exploit-guid` and `xeno-fingerprint` (the user's hardware identifier), and `roblox-place-id`, `roblox-game-id`, `roblox-session-id`, on traffic that is not going to Roblox. Any web service that Xeno scripts call can see these headers, which makes them the simplest server-side signal available outside Roblox (for example to operators of script-hosting or webhook endpoints).
 
 ## Running the tests
 
 ```bash
-pip install pefile zstandard yara-python
+pip install pefile zstandard yara-python capstone
 python -m unittest discover -s tests -v
 ```
 
-The PE tests build harmless DLLs with `clang`, `lld-link` and `llvm-rc`; they are skipped if those tools are missing.
+[`tests/test_tools.py`](../../tests/test_tools.py) builds harmless DLLs with `clang`, `lld-link` and `llvm-rc` and skips those tests if the tools are missing. [`tests/test_samples.py`](../../tests/test_samples.py) runs against `sample/TEST.dll` and `sample/TEST-v1.3.40.dll` when their SHA-256 matches the analyzed builds, and skips otherwise. The signer-rule tests skip when YARA lacks OpenSSL.
 
 ## Next steps for validation
 
 1. Scan a benign corpus (a Windows `System32` copy, common game and overlay DLLs) and record any hits.
 2. Scan other executor builds that are legitimately available, to measure family-level overlap.
-3. Regenerate [`COMPARE_REPORT.md`](../../reports/COMPARE_REPORT.md) with the current tools once the v1.3.40 sample is available.
+3. Run the signer rule on a YARA build with OpenSSL; it has only been checked by parsing both certificates with OpenSSL directly.

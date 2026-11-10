@@ -20,6 +20,15 @@ This writes `xeno_resource_8192.bin` and `xeno_resource_8196.bin`. The `.gitigno
 | `8194/8192` (CLIENT.LUA) | 27,985 | 145,004 | 4,874 | `5fc6c57bd7f770f5a0da214b81b0594b26a921a759eb64f76b33dc12fadca3a6` |
 | `8194/8196` (en-us table) | 62,613 | 336,884 | 1 | `14c9b23e99fafb330e271c283e9c498dbdc0c9a8dd1bf88c34211e190c7ba001` |
 
+v1.3.40 (`sample/TEST-v1.3.40.dll`) decrypts with the same key:
+
+| Resource | Encrypted size | Decrypted size | Lines | SHA-256 of decrypted file |
+|---|---|---|---|---|
+| `8194/8192` (CLIENT.LUA) | 27,793 | 143,847 | 4,826 | `f9e9f59dd62b6328e119acde36d048e7468e2802b860233cf7bdfc4e32c06958` |
+| `8194/8196` (en-us table) | 60,487 | 327,903 | 1 | `88dd355a194a3eea432c283f641e9d87fba1f730631d67fa349b835e10f0c4c7` |
+
+Both tables are checked by [`tests/test_samples.py`](../tests/test_samples.py) when the samples are present.
+
 ## Line index for `CLIENT.LUA` (v1.3.65)
 
 The documentation cites these line numbers as evidence. Each row describes the code briefly; read the file you decrypted yourself for full context.
